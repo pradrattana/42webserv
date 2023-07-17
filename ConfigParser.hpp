@@ -13,73 +13,75 @@
 # include "helper.hpp"
 
 class ConfigParser {
-private:
-	struct listenData {
+public:
+	typedef struct listenData {
 		std::string	addr;
 		int			port;
-	};
+	}	t_listenData;
 
-	struct errorPageData {
+	typedef struct errorPageData {
 		std::vector<int>	code;
 		std::string			uri;
-	};
+	}	t_errorPageData;
 
-	struct locationData {
+	typedef struct locationData {
 		std::string					uri;
-		std::vector<struct listenData>		listen;
+		std::vector<t_listenData>	listen;
 		std::string					root;
 		std::vector<std::string>	index;
 		int							autoIdx;
 		std::string 				cliMax;
-		std::vector<struct errorPageData>	errPage;
-		std::vector<std::string>			limExcept;
-	};
+		std::vector<t_errorPageData>	errPage;
+		std::vector<std::string>	limExcept;
+		std::string					cgiPass;
+	}	t_locationData;
 
 	typedef struct serverData {
-		std::vector<struct listenData>		listen;
 		std::vector<std::string>	name;
+		std::vector<t_listenData>	listen;
 		std::string					root;
 		std::vector<std::string>	index;
 		int							autoIdx;
 		std::string					cliMax;
-		std::vector<struct errorPageData>	errPage;
-		std::vector<struct locationData>	location;
+		std::vector<t_errorPageData>	errPage;
+		std::vector<t_locationData>	location;
 	}	t_serverData;
 
-public:
 	ConfigParser();
 	ConfigParser(const ConfigParser &);
-	ConfigParser(const std::string &);
 	~ConfigParser();
 	ConfigParser &operator= (const ConfigParser &);
 
+	void	readConfig(const std::string &);
 	void	printAll();
+	const std::vector<t_serverData>	&getServer() const;
 
 private:
-	std::vector<struct serverData>	_server;
+	std::vector<t_serverData>	_server;
 	std::map<
 		std::string, void (ConfigParser::*)(const std::string &, uintptr_t)
 	>								_funcMaping;
 
 	void	initFuncMapping();
-	void	initServPtrMapping(std::map<std::string, uintptr_t> &, const struct serverData &);
-	void	initLocPtrMapping(std::map<std::string, uintptr_t> &, const struct locationData &);
+	void	initServPtrMapping(std::map<std::string, uintptr_t> &, const t_serverData &);
+	void	initLocPtrMapping(std::map<std::string, uintptr_t> &, const t_locationData &);
+	void	fillConfig();
 
-	void	readConfig(const std::string &);
-	void	readServer(std::ifstream &, struct serverData &);
-	void	readLocation(std::ifstream &, struct locationData &, const std::string &);
+	void	parseServer(std::ifstream &, t_serverData &);
+	void	parseLocation(std::ifstream &, t_locationData &, const std::string &);
 
-	void	readListen(const std::string &, uintptr_t);
-	void	readServName(const std::string &, uintptr_t);
-	void	readRoot(const std::string &, uintptr_t);
-	void	readIndex(const std::string &, uintptr_t);
-	void	readAutoIndex(const std::string &, uintptr_t);
-	void	readCliMaxBodySize(const std::string &, uintptr_t);
-	void	readErrPage(const std::string &, uintptr_t);
-	void	readLimitExcept(const std::string &, uintptr_t);
+	void	parseListen(const std::string &, uintptr_t);
+	void	parseServName(const std::string &, uintptr_t);
+	void	parseRoot(const std::string &, uintptr_t);
+	void	parseIndex(const std::string &, uintptr_t);
+	void	parseAutoIndex(const std::string &, uintptr_t);
+	void	parseCliMaxBodySize(const std::string &, uintptr_t);
+	void	parseErrPage(const std::string &, uintptr_t);
+	void	parseLimitExcept(const std::string &, uintptr_t);
+	void	parseCgiPass(const std::string &, uintptr_t);
 
-	const std::string	readLocationUri(const std::string &);
-	const std::string	readHelper(const std::string &);
+	const std::string	parseLocationUri(const std::string &);
+	const std::string	parseHelper(const std::string &);
 
 	class InvalidConfigException: public std::exception {
 	public:
