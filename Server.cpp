@@ -30,16 +30,16 @@ Server &Server::operator= (const Server &src) {
 	return *this;
 }
 
-void	Server::initAllSocket(const std::vector<ConfigParser::t_serverData> &allServ) {
+void	Server::initAllSocket(const std::vector<t_serverData> &allServ) {
 	std::vector<int>	tmpPort;
 
-	for (std::vector<ConfigParser::t_serverData>::const_iterator it = allServ.begin();
+	for (std::vector<t_serverData>::const_iterator it = allServ.begin();
 			it != allServ.end(); it++)
 	{
-		for (std::vector<ConfigParser::t_locationData>::const_iterator it2 = it->location.begin();
+		for (std::vector<t_locationData>::const_iterator it2 = it->location.begin();
 				it2 != it->location.end(); it2++)
 		{
-			for (std::vector<ConfigParser::t_listenData>::const_iterator it3 = it2->listen.begin();
+			for (std::vector<t_listenData>::const_iterator it3 = it2->listen.begin();
 				it3 != it2->listen.end(); it3++)
 			{
 				_portToServ[it3->port].insert(*it);
@@ -81,7 +81,7 @@ void	Server::waiting() {
 					continue;
 			}
 		}
-		for (std::map<int, std::set<ConfigParser::t_serverData> >::iterator it = _cli.begin();
+		for (std::map<int, std::set<t_serverData> >::iterator it = _cli.begin();
 			it != _cli.end(); it++)
 		{
 			if (checkClient(*it, nready))
@@ -107,7 +107,7 @@ int	Server::addNewConnection(Socket *s, int &nready) {
 }
 
 
-int	Server::checkClient(std::pair<const int, std::set<ConfigParser::t_serverData> > &fdToServ, int &nready) {
+int	Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ, int &nready) {
 	char	buf[MAXLINE] = {0};
 	int		sockfd, readLen;
 
@@ -124,8 +124,8 @@ int	Server::checkClient(std::pair<const int, std::set<ConfigParser::t_serverData
 		} else {
 			Response	rp(fdToServ.second, (std::string(buf)));
 
-			std::cout << buf << "\n";
-			std::cout << rp.getResponse() << "\n";
+			// std::cout << buf << "\n";
+			// std::cout << rp.getResponse() << "\n";
 
 			const char	*response = rp.getResponse().c_str();
 			write(sockfd, response, strlen(response));

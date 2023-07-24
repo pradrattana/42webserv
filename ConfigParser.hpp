@@ -11,42 +11,10 @@
 # include <map>
 # include <algorithm>
 # include "helper.hpp"
+# include "webservStruct.hpp"
 
 class ConfigParser {
 public:
-	typedef struct listenData {
-		std::string	addr;
-		int			port;
-	}	t_listenData;
-
-	typedef struct errorPageData {
-		std::vector<int>	code;
-		std::string			uri;
-	}	t_errorPageData;
-
-	typedef struct locationData {
-		std::string					uri;
-		std::vector<t_listenData>	listen;
-		std::string					root;
-		std::vector<std::string>	index;
-		int							autoIdx;
-		std::string 				cliMax;
-		std::vector<t_errorPageData>	errPage;
-		std::vector<std::string>	limExcept;
-		std::string					cgiPass;
-	}	t_locationData;
-
-	typedef struct serverData {
-		std::vector<std::string>	name;
-		std::vector<t_listenData>	listen;
-		std::string					root;
-		std::vector<std::string>	index;
-		int							autoIdx;
-		std::string					cliMax;
-		std::vector<t_errorPageData>	errPage;
-		std::vector<t_locationData>	location;
-	}	t_serverData;
-
 	ConfigParser();
 	ConfigParser(const ConfigParser &);
 	~ConfigParser();
@@ -62,6 +30,8 @@ private:
 		std::string, void (ConfigParser::*)(const std::string &, uintptr_t)
 	>								_funcMaping;
 
+	void	fillDefaultServer(t_serverData &);
+	void	fillDefaultLocation(t_serverData &, t_locationData &);
 	void	initFuncMapping();
 	void	initServPtrMapping(std::map<std::string, uintptr_t> &, const t_serverData &);
 	void	initLocPtrMapping(std::map<std::string, uintptr_t> &, const t_locationData &);
@@ -82,6 +52,7 @@ private:
 
 	const std::string	parseLocationUri(const std::string &);
 	const std::string	parseHelper(const std::string &);
+	static bool			compareByUri(const t_locationData &, const t_locationData &);
 
 	class InvalidConfigException: public std::exception {
 	public:

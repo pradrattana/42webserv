@@ -4,7 +4,7 @@ Socket::Socket(void) {
 	// std::cout << "Default constructor called by <Socket>" << std::endl;
 }
 
-Socket::Socket(const ConfigParser::t_listenData &lsn) {
+Socket::Socket(const t_listenData &lsn) {
 	_lsnPort = lsn.port;
 	initSocket(lsn);
 }
@@ -27,7 +27,7 @@ Socket &Socket::operator= (const Socket &src) {
 	return *this;
 }
 
-void	Socket::initSocket(const ConfigParser::t_listenData &lsn) {
+void	Socket::initSocket(const t_listenData &lsn) {
 	// creates socket to perform network I/O
 	if ((_lsnFd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket");

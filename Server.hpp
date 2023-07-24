@@ -21,6 +21,7 @@
 # include "RequestParser.hpp"
 # include "Response.hpp"
 # include "Socket.hpp"
+# include "webservStruct.hpp"
 
 # define MAXLINE 3000
 
@@ -32,19 +33,19 @@ public:
 	~Server();
 	Server &operator= (const Server &);
 
-	void	initAllSocket(const std::vector<ConfigParser::t_serverData> &);
+	void	initAllSocket(const std::vector<t_serverData> &);
 	void	initAllFdset();
 	void	waiting();
 	int		addNewConnection(Socket *, int &);
-	int		checkClient(std::pair<const int, std::set<ConfigParser::t_serverData> > &, int &);
+	int		checkClient(std::pair<const int, std::set<t_serverData> > &, int &);
 
 private:
 	std::vector<Socket *>	_allSock;
 	fd_set					_allSet;
 	fd_set					_readSet;
 	int						_maxFd;
-	std::map<int, std::set<ConfigParser::t_serverData> >	_portToServ;
-	std::map<int, std::set<ConfigParser::t_serverData> >	_cli;
+	std::map<int, std::set<t_serverData> >	_portToServ;
+	std::map<int, std::set<t_serverData> >	_cli;
 };
 
 #endif

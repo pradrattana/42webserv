@@ -20,6 +20,43 @@ ConfigParser &ConfigParser::operator= (const ConfigParser &src) {
 	return *this;
 }
 
+void	ConfigParser::fillDefaultServer(t_serverData &s) {
+	if (s.name.empty())
+		s.name.push_back("");
+	if (s.listen.empty()) {
+		t_listenData	lsn = {"*", 80};
+		s.listen.push_back(lsn);
+		lsn.port = 8000;
+		s.listen.push_back(lsn);
+	}
+	if (s.root.empty())
+		s.root = "html";
+	if (s.index.empty())
+		s.index.push_back("index.html");
+	if (s.cliMax.empty())
+		s.cliMax = "1m";
+	if (s.location.empty())
+		s.location.push_back(t_locationData());
+	for (std::vector<t_locationData>::iterator it = s.location.begin();
+			it != s.location.end(); it++)
+		fillDefaultLocation(s, *it);
+}
+
+void	ConfigParser::fillDefaultLocation(t_serverData &s, t_locationData &l) {
+	if (l.uri.empty())
+		l.uri = "/";
+	if (l.listen.empty())
+		l.listen = s.listen;
+	if (l.root.empty())
+		l.root = s.root;
+	if (l.index.empty())
+		l.index = s.index;
+	if (l.cliMax.empty())
+		l.cliMax = s.cliMax;
+	if (l.errPage.empty())
+		l.errPage = s.errPage;
+}
+
 void	ConfigParser::initFuncMapping() {
 	_funcMaping["listen"] = &ConfigParser::parseListen;
 	_funcMaping["server_name"] = &ConfigParser::parseServName;
@@ -72,6 +109,9 @@ void	ConfigParser::readConfig(const std::string &src) {
 			if (col == "server") {
 				_server.push_back(serverData());
 				parseServer(ifs, _server.back());
+				fillDefaultServer(_server.back());
+				std::sort(_server.back().location.begin(),
+					_server.back().location.end(), compareByUri);
 			}
 		}
 	}
@@ -178,6 +218,8 @@ void	ConfigParser::parseRoot(const std::string &s, uintptr_t p) {
 	if (!res.empty()) {
 		iss >> col;
 		if (iss.eof()) {
+			if (col[col.length() - 1] == '/')
+				col.erase(col.length() - 1);
 			*deserialize<std::string>(p) = col;
 			return ;
 		}
@@ -316,6 +358,10 @@ const std::string	ConfigParser::parseHelper(const std::string &src) {
 	// throw ConfigParser::InvalidConfigException();
 }
 
+bool	ConfigParser::compareByUri(const t_locationData &a, const t_locationData &b) {
+	return	a.uri > b.uri;
+}
+
 void	ConfigParser::printAll() {
 	for (std::vector<t_serverData>::iterator it = _server.begin();
 			it != _server.end(); it++)
@@ -362,7 +408,7 @@ void	ConfigParser::printAll() {
 	}
 }
 
-const std::vector<ConfigParser::t_serverData>	&ConfigParser::getServer() const {
+const std::vector<t_serverData>	&ConfigParser::getServer() const {
 	return _server;
 }
 

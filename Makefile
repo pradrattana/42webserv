@@ -6,7 +6,7 @@ CC = c++
 CFLAGS = -Wall -Werror -Wextra -std=c++98
 RM = rm
 
-SRC_FILE = ConfigParser main
+SRC_FILE = ConfigParser RequestParser Response Server Socket main
 SRCS = $(addsuffix .cpp, $(SRC_FILE))
 OBJS = $(addprefix $(OBJ_DIR), $(addsuffix .o, $(SRC_FILE)))
 

@@ -16,18 +16,19 @@
 # include <netinet/in.h>
 # include <vector>
 #include "ConfigParser.hpp"
+# include "webservStruct.hpp"
 
 # define BACKLOG 1000
 
 class Socket {
 public:
 	Socket();
-	Socket(const ConfigParser::t_listenData &);
+	Socket(const t_listenData &);
 	Socket(const Socket &);
 	~Socket();
 	Socket &operator= (const Socket &);
 
-	void		initSocket(const ConfigParser::t_listenData &);
+	void		initSocket(const t_listenData &);
 	int			getNewConnection();
 	const int	&getListeningFd() const;
 	const int	&getListeningPort() const;
