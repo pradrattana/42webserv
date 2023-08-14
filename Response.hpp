@@ -2,18 +2,21 @@
 # define RESPONSE_HPP
 
 # include <iostream>
+# include <iomanip>
 # include <sstream>
 # include <fstream>
 # include <string>
 # include <cstdlib>
 # include <ctime>
 # include <sys/stat.h>
+# include <dirent.h>
 # include <map>
 # include <set>
 # include <utility>
 # include "ConfigParser.hpp"
 # include "RequestParser.hpp"
 # include "webservStruct.hpp"
+# include "helper.hpp"
 
 class Response {
 public:
@@ -40,7 +43,7 @@ public:
 	// void	setContentEncoding();
 	// void	setContentLanguage();
 	void	setContentLength();
-	// void	setContentLocation();
+	void	setLocation();
 	// void	setContentMD5();
 	// void	setContentRange();
 	void	setContentType();
@@ -48,13 +51,21 @@ public:
 	// void	setLastModified();
 	// void	setExtensionHeader();
 
+	void	directoryListing();
+
 	void	methodHandler();
 	void	methodGet();
 	void	methodPost();
 	void	methodDelete();
 
-	void	setFullPath();
+	bool	setFullPath();
 	void	setErrorPath();
+
+	void	printFileSize(std::ostringstream &, const std::string &);
+	void	printDateModified(std::ostringstream &, const std::string &);
+	void	printStyle(std::ostringstream &);
+	void	printTable(std::ostringstream &, std::stringstream &);
+
 
 private:
 	RequestParser	_request;

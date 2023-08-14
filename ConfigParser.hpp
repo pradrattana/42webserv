@@ -21,8 +21,8 @@ public:
 	ConfigParser &operator= (const ConfigParser &);
 
 	void	readConfig(const std::string &);
-	void	printAll();
 	const std::vector<t_serverData>	&getServer() const;
+	void	printAll();
 
 private:
 	std::vector<t_serverData>	_server;
@@ -35,10 +35,9 @@ private:
 	void	initFuncMapping();
 	void	initServPtrMapping(std::map<std::string, uintptr_t> &, const t_serverData &);
 	void	initLocPtrMapping(std::map<std::string, uintptr_t> &, const t_locationData &);
-	void	fillConfig();
 
 	void	parseServer(std::ifstream &, t_serverData &);
-	void	parseLocation(std::ifstream &, t_locationData &, const std::string &);
+	void	parseLocation(std::ifstream &, t_locationData &);
 
 	void	parseListen(const std::string &, uintptr_t);
 	void	parseServName(const std::string &, uintptr_t);
@@ -50,7 +49,6 @@ private:
 	void	parseLimitExcept(const std::string &, uintptr_t);
 	void	parseCgiPass(const std::string &, uintptr_t);
 
-	const std::string	parseLocationUri(const std::string &);
 	const std::string	parseHelper(const std::string &);
 	static bool			compareByUri(const t_locationData &, const t_locationData &);
 

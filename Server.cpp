@@ -78,11 +78,11 @@ void	Server::waiting() {
 		{
 			if (FD_ISSET((*it)->getListeningFd(), &_readSet)) {
 				if (addNewConnection(*it, nready))
-					continue;
+					break;
 			}
 		}
 		for (std::map<int, std::set<t_serverData> >::iterator it = _cli.begin();
-			it != _cli.end(); it++)
+				it != _cli.end(); it++)
 		{
 			if (checkClient(*it, nready))
 				break ;
@@ -94,7 +94,7 @@ int	Server::addNewConnection(Socket *s, int &nready) {
 	const int	newFd = s->getNewConnection();
 
 	_cli[newFd] = _portToServ[s->getListeningPort()];
-	if (_cli.size() == FD_SETSIZE) {
+	if (_cli.size() >= FD_SETSIZE) {
 		perror("too many clients");
 		exit(EXIT_FAILURE);
 	}
@@ -106,7 +106,6 @@ int	Server::addNewConnection(Socket *s, int &nready) {
 	return (--nready <= 0);
 }
 
-
 int	Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ, int &nready) {
 	char	buf[MAXLINE] = {0};
 	int		sockfd, readLen;
@@ -115,19 +114,18 @@ int	Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ,
 		return 0;
 
 	if (FD_ISSET(sockfd, &_readSet)) {
+		std::cout << "cli accept fd " << sockfd << "\n";
 		if ((readLen = read(sockfd, buf, MAXLINE)) == 0) {
 			close(sockfd);
 			FD_CLR(sockfd, &_allSet);
-			_cli.erase(fdToServ.first);
+			_cli.erase(sockfd);
 		} else if (readLen < 0) {
 
 		} else {
 			Response	rp(fdToServ.second, (std::string(buf)));
-
-			// std::cout << buf << "\n";
-			// std::cout << rp.getResponse() << "\n";
-
 			const char	*response = rp.getResponse().c_str();
+
+			// std::cout << "Request\n" << buf << "\n";
 			write(sockfd, response, strlen(response));
 		}
 		return (--nready <= 0);

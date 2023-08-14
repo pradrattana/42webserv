@@ -3,6 +3,7 @@
 
 # include <string>
 # include <vector>
+# include <set>
 
 typedef struct listenData {
     std::string	addr;
@@ -13,8 +14,9 @@ typedef struct listenData {
             && port == rhs.port;
     }
     inline bool operator<(const listenData& rhs) const {
-        return addr < rhs.addr
-            && port < rhs.port;
+        if (port == rhs.port)
+            return addr < rhs.addr;
+        return port < rhs.port;
     }
 }	t_listenData;
 
@@ -34,13 +36,15 @@ typedef struct errorPageData {
 
 typedef struct locationData {
     std::string					uri;
+
     std::vector<t_listenData>	listen;
     std::string					root;
     std::vector<std::string>	index;
-    int							autoIdx;
+    std::string					autoIdx;
     std::string 				cliMax;
     std::vector<t_errorPageData>	errPage;
-    std::vector<std::string>	limExcept;
+
+    std::set<std::string>	limExcept;
     std::string					cgiPass;
 
     inline bool operator==(const locationData& rhs) const {
@@ -69,12 +73,14 @@ typedef struct locationData {
 
 typedef struct serverData {
     std::vector<std::string>	name;
+
     std::vector<t_listenData>	listen;
     std::string					root;
     std::vector<std::string>	index;
-    int							autoIdx;
+    std::string					autoIdx;
     std::string					cliMax;
     std::vector<t_errorPageData>	errPage;
+
     std::vector<t_locationData>	location;
 
     inline bool operator==(const serverData& rhs) const {
@@ -88,14 +94,20 @@ typedef struct serverData {
             && location == rhs.location;
     }
     inline bool operator<(const serverData& rhs) const {
-        return name < rhs.name
-            && listen < rhs.listen
-            && root < rhs.root
-            && index < rhs.index
-            && autoIdx < rhs.autoIdx
-            && cliMax < rhs.cliMax
-            && errPage < rhs.errPage
-            && location < rhs.location;
+        if (name == rhs.name) {
+            if (root == rhs.root)
+                return listen < rhs.listen;
+            return root < rhs.root;
+        }
+        return name < rhs.name;
+        // return name < rhs.name
+        //     && listen < rhs.listen
+        //     && root < rhs.root
+        //     && index < rhs.index
+        //     && autoIdx < rhs.autoIdx
+        //     && cliMax < rhs.cliMax 
+        //     && errPage < rhs.errPage
+        //     && location < rhs.location;
     }
 }	t_serverData;
 

@@ -16,12 +16,12 @@ Response::Response(const std::set<t_serverData> &serv, const std::string &buf) {
 
 	try {
 		setRequestLocation(serv);
+		methodHandler();
 	} catch (const int &e) {
 		_code = e;
-		setResponse();
+	} catch (...) {
 		return ;
 	}
-	methodHandler();
 	setResponse();
 }
 
@@ -36,7 +36,7 @@ Response &Response::operator= (const Response &src) {
 }
 
 void	Response::initStatusMapping() {
-	_statMaping[0] = "WHAT";
+	_statMaping[0] = "";
 
 	_statMaping[200] = "OK";
 	_statMaping[201] = "Created";
@@ -56,7 +56,6 @@ void	Response::initStatusMapping() {
 
 	_statMaping[400] = "Bad Request";
 	_statMaping[401] = "Unauthorized";
-	_statMaping[402] = "Payment Required";
 	_statMaping[403] = "Forbidden";
 	_statMaping[404] = "Not Found";
 	_statMaping[405] = "Method Not Allowed";
@@ -78,25 +77,29 @@ void	Response::setRequestLocation(const std::set<t_serverData> &serv) {
 	if ((pos = lsn.addr.find(':')) != std::string::npos) {
 		lsn.port = atoi(lsn.addr.substr(pos + 1).c_str());
 		lsn.addr.erase(pos);
+	} else {
+		// lsn.port = 80;
 	}
 
 	for (std::set<t_serverData>::const_iterator it = serv.begin();
 			it != serv.end(); it++)
 	{
-		for (std::vector<t_locationData>::const_iterator it2 = it->location.begin();
-				it2 != it->location.end(); it2++)
+		if (isIPv4(lsn.addr) || std::find(it->name.begin(), it->name.end(), lsn.addr) != it->name.end())
 		{
-			for (std::vector<t_listenData>::const_iterator it3 = it2->listen.begin();
-					it3 != it2->listen.end(); it3++)
+			for (std::vector<t_locationData>::const_iterator it2 = it->location.begin();
+					it2 != it->location.end(); it2++)
 			{
-				if (it3->addr == lsn.addr && it3->port == lsn.port) {
-					if (_request.getUri().find(it2->uri) == 0) {
-						_reqLoc = *it2;
-						return ;
+				for (std::vector<t_listenData>::const_iterator it3 = it2->listen.begin();
+						it3 != it2->listen.end(); it3++)
+				{
+					if ((!isIPv4(lsn.addr) || it3->addr == lsn.addr) && it3->port == lsn.port) {
+						if (_request.getUri().find(it2->uri) == 0) {
+							_reqLoc = *it2;
+							return ;
+						}
 					}
 				}
 			}
-			
 		}
 	}
 	throw 400;
@@ -106,11 +109,12 @@ void	Response::setResponse() {
 	std::ostringstream	oss;
 
 	if (_code != 200) {
-		// std::cout << "error\n";
+		// std::cout << "error " << _code << " ";
 		setErrorPath();
+		// std::cout << "path: " << _fullPath << "\n";
 		setMessageBody();
 		setContentType();
-		// setContentLength();
+		setContentLength();
 	}
 	oss << getStatusLine() << getHeadersText() << "\r\n" << _msgBody;
 	_response = oss.str();
@@ -125,7 +129,7 @@ void	Response::setMessageBody() {
 	ifs.close();
 }
 
-void	Response::setFullPath() {
+bool	Response::setFullPath() {
 	std::ostringstream	oss;
 	struct stat			statBuf;
 
@@ -137,7 +141,7 @@ void	Response::setFullPath() {
 			oss << _reqLoc.root << '/' << *it;
 			if (stat(oss.str().c_str(), &statBuf) == 0) {
 				_fullPath = oss.str();
-				return ;
+				return S_ISDIR(statBuf.st_mode);
 			}
 			oss.clear();
 			oss.str("");
@@ -146,10 +150,14 @@ void	Response::setFullPath() {
 		oss << _reqLoc.root << _request.getUri();
 		if (stat(oss.str().c_str(), &statBuf) == 0) {
 			_fullPath = oss.str();
-			return ;
+			return S_ISDIR(statBuf.st_mode);
 		}
 	}
-	throw errno;
+	if (errno == EACCES)
+		throw 403;
+	else if (errno == ENOENT)
+		throw 404;
+	return 0;
 }
 
 void	Response::setErrorPath() {
@@ -162,12 +170,13 @@ void	Response::setErrorPath() {
 		if (std::find(it->code.begin(), it->code.end(), _code) != it->code.end()) {
 			oss << _reqLoc.root << it->uri;
 			if (stat(oss.str().c_str(), &statBuf) == 0) {
-				std::cout << "path: " << oss.str() << "\n";
 				_fullPath = oss.str();
 				return ;
 			}
 		}
 	}
+	oss << std::getenv("PWD") << "/webserv_default_error/error.html";
+	_fullPath = oss.str();
 }
 
 void	Response::setDate() {
@@ -175,22 +184,30 @@ void	Response::setDate() {
 	char		mbstr[100];
 
 	if (std::strftime(mbstr, sizeof(mbstr),
-			"%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&t)))
+			"%a, %d %b %Y %T GMT", std::gmtime(&t)))
 	{
 		_headers["Date"] = std::string(mbstr);
 	}
 }
 
+void	Response::setLocation() {
+	std::ostringstream	oss;
+
+	oss << "http://"
+		<< _request.getHeaders().at("Host")
+		<< (*_request.getUri().begin() == '/' ? "" : "/")
+		<< _request.getUri()
+		<< '/';
+
+	std::cout << "oos = " << oss.str();
+	_headers["Location"] = oss.str();
+}
+
 void	Response::setContentLength() {
-	// struct stat	statBuf;
-    // int			rc = stat(_fullPath.c_str(), &statBuf);
+	std::ostringstream	oss;
 
-	// std::ostringstream	oss;
-	// oss << (rc == 0 ? statBuf.st_size : -1);
-
-	// _headers["Content-Length"] = oss.str();
-
-	_headers["Content-Length"] = _msgBody.length();
+	oss << _msgBody.length();
+	_headers["Content-Length"] = oss.str();
 }
 
 // https://www.iana.org/assignments/media-types/media-types.xhtml
@@ -211,6 +228,11 @@ void	Response::setContentType() {
 			type = "text/html";
 	}
 
+	// if (_request.getHeaders().at("Accept").find("*/*") == std::string::npos) {
+	// 	if (_request.getHeaders().at("Accept").find(type) == std::string::npos)
+	// 		throw 406;
+	// }
+
 	_headers["Content-Type"] = type;
 }
 
@@ -221,32 +243,35 @@ void	Response::methodHandler() {
 	method["POST"] = &Response::methodPost;
 	method["DELETE"] = &Response::methodDelete;
 
-	if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
-			_request.getMethod()) != _reqLoc.limExcept.end())
-	{
-		(this->*method[_request.getMethod()])();
+	if (method.find(_request.getMethod()) != method.end()) {
+		if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
+				_request.getMethod()) != _reqLoc.limExcept.end())
+			(this->*method[_request.getMethod()])();
+		else
+			throw 405;
 	} else {
-		_code = 405;
+		throw 501;
 	}
 }
 
 void	Response::methodGet() {
 	setDate();
 
-	try {
-		setFullPath();
-	} catch (const int &e) {
-		std::cout << "catch " << e << "\n";
-		if (e == EACCES)
-			_code = 403;
-		else if (e == ENOENT)
-			_code = 404;
-		return ;
+	// if full path is directory
+	if (setFullPath()) {
+		if (_reqLoc.autoIdx == "on") {
+			if (*(_fullPath.end() - 1) != '/') {
+				setLocation();
+				throw 301;
+			}
+			directoryListing();
+		} else
+			throw 403;
+	} else {
+		setMessageBody();
+		setContentLength();
+		setContentType();
 	}
-
-	setMessageBody();
-	setContentLength();
-	setContentType();
 
 	_code = 200;
 }

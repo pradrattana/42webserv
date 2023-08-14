@@ -41,9 +41,12 @@ void	Socket::initSocket(const t_listenData &lsn) {
 
 	// assigns a local protocol address to a socket
 	if (bind(_lsnFd, (struct sockaddr *)&_servAddr,
-				sizeof(_servAddr)) < 0) {
-		perror("bind"); 
-		exit(EXIT_FAILURE);
+				sizeof(_servAddr)) < 0)
+	{
+		std::ostringstream	oss;
+		oss << "Bind " << lsn.port << " failed";
+		perror(oss.str().c_str()); 
+		// exit(EXIT_FAILURE);
 	}
 
 	// converts an unconnected socket into a passive socket
@@ -61,6 +64,10 @@ int	Socket::getNewConnection() {
 		perror("accept");
 		exit(EXIT_FAILURE);
 	}
+	char	str[INET_ADDRSTRLEN];
+	printf("new client: %s, port %d\n",
+			inet_ntop(AF_INET, &_cliAddr.sin_addr, str, INET_ADDRSTRLEN),
+			ntohs(_cliAddr.sin_port));
 	return newFd;
 }
 
