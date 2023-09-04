@@ -82,10 +82,13 @@ void	Server::waiting() {
 			}
 		}
 		for (std::map<int, std::set<t_serverData> >::iterator it = _cli.begin();
-				it != _cli.end(); it++)
+				it != _cli.end(); )
 		{
+			std::map<int, std::set<t_serverData> >::iterator itNext = ++it;
+			it--;
 			if (checkClient(*it, nready))
 				break ;
+			it = itNext;
 		}
 	}
 }
@@ -116,7 +119,8 @@ int	Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ,
 	if (FD_ISSET(sockfd, &_readSet)) {
 		std::cout << "cli accept fd " << sockfd << "\n";
 		if ((readLen = read(sockfd, buf, MAXLINE)) == 0) {
-			close(sockfd);
+			std::cout << "readlen=0 close=";
+			std::cout << close(sockfd) << "\n";
 			FD_CLR(sockfd, &_allSet);
 			_cli.erase(sockfd);
 		} else if (readLen < 0) {
@@ -127,6 +131,7 @@ int	Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ,
 
 			// std::cout << "Request\n" << buf << "\n";
 			write(sockfd, response, strlen(response));
+			std::cout << "readlen>0\n";
 		}
 		return (--nready <= 0);
 	}

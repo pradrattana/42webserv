@@ -34,6 +34,10 @@ void	Socket::initSocket(const t_listenData &lsn) {
 		exit(EXIT_FAILURE);
 	}
 
+	fcntl(_lsnFd, F_SETFL, O_NONBLOCK);
+	// int    on = 1;
+	// ioctl(_lsnFd, FIONBIO, (char *)&on);
+
 	bzero((char *)&_servAddr, sizeof(_servAddr)); 
 	_servAddr.sin_family = AF_INET; 
 	_servAddr.sin_addr.s_addr = htonl(INADDR_ANY);

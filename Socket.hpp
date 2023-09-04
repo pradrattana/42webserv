@@ -15,6 +15,8 @@
 # include <arpa/inet.h>
 # include <netinet/in.h>
 # include <vector>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 #include "ConfigParser.hpp"
 # include "webservStruct.hpp"
 
