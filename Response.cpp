@@ -1,41 +1,52 @@
 #include "Response.hpp"
 
-Response::Response(void) {
+Response::Response(void)
+{
 	// std::cout << "Default constructor called by <Response>" << std::endl;
 	initStatusMapping();
 }
 
-Response::Response(const Response &src) {
+Response::Response(const Response &src)
+{
 	// std::cout << "Copy constructor called by <Response>" << std::endl;
 	*this = src;
 }
 
-Response::Response(const std::set<t_serverData> &serv, const std::string &buf) {
+Response::Response(const std::set<t_serverData> &serv, const std::string &buf)
+{
 	initStatusMapping();
 	_request.readRequest(buf);
-
-	try {
+	try
+	{
+		// std::cout << buf << std::endl;
 		setRequestLocation(serv);
 		methodHandler();
-	} catch (const int &e) {
+	}
+	catch (const int &e)
+	{
 		_code = e;
-	} catch (...) {
-		return ;
+	}
+	catch (...)
+	{
+		return;
 	}
 	setResponse();
 }
 
-Response::~Response(void) {
+Response::~Response(void)
+{
 	// std::cout << "Destructor called by <Response>" << std::endl;
 }
 
-Response &Response::operator= (const Response &src) {
+Response &Response::operator=(const Response &src)
+{
 	// std::cout << "Copy assignment operator called by <Response>" << std::endl;
 	(void)src;
 	return *this;
 }
 
-void	Response::initStatusMapping() {
+void Response::initStatusMapping()
+{
 	_statMaping[0] = "";
 
 	_statMaping[200] = "OK";
@@ -69,33 +80,40 @@ void	Response::initStatusMapping() {
 	_statMaping[505] = "HTTP Version not supported";
 }
 
-void	Response::setRequestLocation(const std::set<t_serverData> &serv) {
-	t_listenData			lsn;
-	std::string::size_type	pos;
+void Response::setRequestLocation(const std::set<t_serverData> &serv)
+{
+	t_listenData lsn;
+	std::string::size_type pos;
 
 	lsn.addr = _request.getHeaders().at("Host");
-	if ((pos = lsn.addr.find(':')) != std::string::npos) {
+	if ((pos = lsn.addr.find(':')) != std::string::npos)
+	{
 		lsn.port = atoi(lsn.addr.substr(pos + 1).c_str());
 		lsn.addr.erase(pos);
-	} else {
+	}
+	else
+	{
 		// lsn.port = 80;
 	}
 
 	for (std::set<t_serverData>::const_iterator it = serv.begin();
-			it != serv.end(); it++)
+		 it != serv.end(); it++)
 	{
 		if (isIPv4(lsn.addr) || std::find(it->name.begin(), it->name.end(), lsn.addr) != it->name.end())
 		{
 			for (std::vector<t_locationData>::const_iterator it2 = it->location.begin();
-					it2 != it->location.end(); it2++)
+				 it2 != it->location.end(); it2++)
 			{
 				for (std::vector<t_listenData>::const_iterator it3 = it2->listen.begin();
-						it3 != it2->listen.end(); it3++)
+					 it3 != it2->listen.end(); it3++)
 				{
-					if ((!isIPv4(lsn.addr) || it3->addr == lsn.addr) && it3->port == lsn.port) {
-						if (_request.getUri().find(it2->uri) == 0) {
+					// std::cout << it2->location
+					if ((!isIPv4(lsn.addr) || it3->addr == lsn.addr) && it3->port == lsn.port)
+					{
+						if (_request.getUri().find(it2->uri) == 0)
+						{
 							_reqLoc = *it2;
-							return ;
+							return;
 						}
 					}
 				}
@@ -105,10 +123,12 @@ void	Response::setRequestLocation(const std::set<t_serverData> &serv) {
 	throw 400;
 }
 
-void	Response::setResponse() {
-	std::ostringstream	oss;
+void Response::setResponse()
+{
+	std::ostringstream oss;
 
-	if (_code != 200) {
+	if (_code != 200)
+	{
 		// std::cout << "error " << _code << " ";
 		setErrorPath();
 		// std::cout << "path: " << _fullPath << "\n";
@@ -116,39 +136,47 @@ void	Response::setResponse() {
 		setContentType();
 		setContentLength();
 	}
-	oss << getStatusLine() << getHeadersText() << "\r\n" << _msgBody;
+	oss << getStatusLine() << getHeadersText() << "\r\n"
+		<< _msgBody;
 	_response = oss.str();
 }
 
-void	Response::setMessageBody() {
-	std::ostringstream	oss;
-	std::ifstream		ifs(_fullPath.c_str());
+void Response::setMessageBody()
+{
+	std::ostringstream oss;
+	std::ifstream ifs(_fullPath.c_str());
 
 	_msgBody.assign(std::istreambuf_iterator<char>(ifs),
 					std::istreambuf_iterator<char>());
 	ifs.close();
 }
 
-bool	Response::setFullPath() {
-	std::ostringstream	oss;
-	struct stat			statBuf;
+bool Response::setFullPath()
+{
+	std::ostringstream oss;
+	struct stat statBuf;
 
 	// if request index
-	if (_request.getUri() == "/") {
+	if (_request.getUri() == "/")
+	{
 		for (std::vector<std::string>::const_iterator it = _reqLoc.index.begin();
-				it != _reqLoc.index.end(); it++)
+			 it != _reqLoc.index.end(); it++)
 		{
 			oss << _reqLoc.root << '/' << *it;
-			if (stat(oss.str().c_str(), &statBuf) == 0) {
+			if (stat(oss.str().c_str(), &statBuf) == 0)
+			{
 				_fullPath = oss.str();
 				return S_ISDIR(statBuf.st_mode);
 			}
 			oss.clear();
 			oss.str("");
 		}
-	} else {
+	}
+	else
+	{
 		oss << _reqLoc.root << _request.getUri();
-		if (stat(oss.str().c_str(), &statBuf) == 0) {
+		if (stat(oss.str().c_str(), &statBuf) == 0)
+		{
 			_fullPath = oss.str();
 			return S_ISDIR(statBuf.st_mode);
 		}
@@ -160,18 +188,21 @@ bool	Response::setFullPath() {
 	return 0;
 }
 
-void	Response::setErrorPath() {
-	std::ostringstream	oss;
-	struct stat			statBuf;
+void Response::setErrorPath()
+{
+	std::ostringstream oss;
+	struct stat statBuf;
 
 	for (std::vector<t_errorPageData>::const_iterator it = _reqLoc.errPage.begin();
-			it != _reqLoc.errPage.end(); it++)
+		 it != _reqLoc.errPage.end(); it++)
 	{
-		if (std::find(it->code.begin(), it->code.end(), _code) != it->code.end()) {
+		if (std::find(it->code.begin(), it->code.end(), _code) != it->code.end())
+		{
 			oss << _reqLoc.root << it->uri;
-			if (stat(oss.str().c_str(), &statBuf) == 0) {
+			if (stat(oss.str().c_str(), &statBuf) == 0)
+			{
 				_fullPath = oss.str();
-				return ;
+				return;
 			}
 		}
 	}
@@ -179,19 +210,21 @@ void	Response::setErrorPath() {
 	_fullPath = oss.str();
 }
 
-void	Response::setDate() {
-	std::time_t	t = std::time(0);
-	char		mbstr[100];
+void Response::setDate()
+{
+	std::time_t t = std::time(0);
+	char mbstr[100];
 
 	if (std::strftime(mbstr, sizeof(mbstr),
-			"%a, %d %b %Y %T GMT", std::gmtime(&t)))
+					  "%a, %d %b %Y %T GMT", std::gmtime(&t)))
 	{
 		_headers["Date"] = std::string(mbstr);
 	}
 }
 
-void	Response::setLocation() {
-	std::ostringstream	oss;
+void Response::setLocation()
+{
+	std::ostringstream oss;
 
 	oss << "http://"
 		<< _request.getHeaders().at("Host")
@@ -203,20 +236,23 @@ void	Response::setLocation() {
 	_headers["Location"] = oss.str();
 }
 
-void	Response::setContentLength() {
-	std::ostringstream	oss;
+void Response::setContentLength()
+{
+	std::ostringstream oss;
 
 	oss << _msgBody.length();
 	_headers["Content-Length"] = oss.str();
 }
 
 // https://www.iana.org/assignments/media-types/media-types.xhtml
-void	Response::setContentType() {
-	std::string::size_type	pos = _fullPath.rfind('.') + 1;
-	std::string				type = "text/plain";
+void Response::setContentType()
+{
+	std::string::size_type pos = _fullPath.rfind('.') + 1;
+	std::string type = "text/plain";
 
-	if (pos != std::string::npos) {
-		std::string	ext = _fullPath.substr(pos);
+	if (pos != std::string::npos)
+	{
+		std::string ext = _fullPath.substr(pos);
 		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 		if (ext == "jpeg" || ext == "jpg")
 			type = "image/jpeg";
@@ -236,38 +272,55 @@ void	Response::setContentType() {
 	_headers["Content-Type"] = type;
 }
 
-void	Response::methodHandler() {
-	std::map<std::string, void (Response::*)()>	method;
+void Response::methodHandler()
+{
+	std::map<std::string, void (Response::*)()> method;
 
 	method["GET"] = &Response::methodGet;
 	method["POST"] = &Response::methodPost;
 	method["DELETE"] = &Response::methodDelete;
 
-	if (method.find(_request.getMethod()) != method.end()) {
+	if (method.find(_request.getMethod()) != method.end())
+	{
+
+		std::cout << _request.getMethod() << "\n";
+		for (std::set<std::string> ::iterator it = _reqLoc.limExcept.begin(); it != _reqLoc.limExcept.end(); it++)
+			std::cout << "_reqLoc : " << _reqLoc.limExcept.begin()->c_str() << "\n";
 		if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
-				_request.getMethod()) != _reqLoc.limExcept.end())
+					  _request.getMethod()) != _reqLoc.limExcept.end())
+			(this->*method[_request.getMethod()])();
+		else if (_request.getMethod() == "POST")
 			(this->*method[_request.getMethod()])();
 		else
 			throw 405;
-	} else {
+	}
+	else
+	{
 		throw 501;
 	}
 }
 
-void	Response::methodGet() {
+void Response::methodGet()
+{
 	setDate();
 
 	// if full path is directory
-	if (setFullPath()) {
-		if (_reqLoc.autoIdx == "on") {
-			if (*(_fullPath.end() - 1) != '/') {
+	if (setFullPath())
+	{
+		if (_reqLoc.autoIdx == "on")
+		{
+			if (*(_fullPath.end() - 1) != '/')
+			{
 				setLocation();
 				throw 301;
 			}
 			directoryListing();
-		} else
+		}
+		else
 			throw 403;
-	} else {
+	}
+	else
+	{
 		setMessageBody();
 		setContentLength();
 		setContentType();
@@ -276,16 +329,28 @@ void	Response::methodGet() {
 	_code = 200;
 }
 
-void	Response::methodPost() {}
-void	Response::methodDelete() {}
+void Response::methodPost()
+{
+	std::cout << "methodPost" << std::endl;
+	std::cout << "response : " << _response << std::endl;
+	std::cout << "request : " << _request.getUri() << std::endl;
+	std::cout << _request.getHeaders().begin()->first << std::endl;
+	std::cout << _request.getHeaders().begin()->second << std::endl;
+	_request.getHeaders().begin()++;
+	std::cout << _request.getHeaders().begin()->first << std::endl;
+	std::cout << _request.getHeaders().begin()->second << std::endl;
+}
 
-const std::string	Response::toEnv() const {
-	std::ostringstream		oss;
-	std::string				key;
-	std::string::size_type	pos;
+void Response::methodDelete() {}
+
+const std::string Response::toEnv() const
+{
+	std::ostringstream oss;
+	std::string key;
+	std::string::size_type pos;
 
 	for (std::map<std::string, std::string>::const_iterator it = _headers.begin();
-			it != _headers.end(); it++)
+		 it != _headers.end(); it++)
 	{
 		key = it->first;
 		while ((pos = key.find('-')) != std::string::npos)
@@ -297,12 +362,14 @@ const std::string	Response::toEnv() const {
 	return oss.str();
 }
 
-const std::string	&Response::getResponse() const {
+const std::string &Response::getResponse() const
+{
 	return _response;
 }
 
-const std::string	Response::getStatusLine() const {
-	std::ostringstream	oss;
+const std::string Response::getStatusLine() const
+{
+	std::ostringstream oss;
 
 	oss << _request.getVersion() << " "
 		<< _code << " "
@@ -310,16 +377,17 @@ const std::string	Response::getStatusLine() const {
 	return oss.str();
 }
 
-const std::string	Response::getHeadersText() const {
-	std::ostringstream	oss;
+const std::string Response::getHeadersText() const
+{
+	std::ostringstream oss;
 
 	for (std::map<std::string, std::string>::const_iterator it = _headers.begin();
-			it != _headers.end(); it++)
+		 it != _headers.end(); it++)
 		oss << it->first << ": " << it->second << "\r\n";
 	return oss.str();
 }
 
-const std::string	&Response::getMessageBody() const {
+const std::string &Response::getMessageBody() const
+{
 	return _msgBody;
 }
-

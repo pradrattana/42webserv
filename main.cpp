@@ -2,23 +2,28 @@
 #include "ConfigParser.hpp"
 #include <iostream>
 
-int	main(int argc, char **argv, char **env) {
+int main(int argc, char **argv, char **env)
+{
 	(void)argc;
 	(void)argv;
 	(void)env;
 
-	if (argc == 2){
-		ConfigParser	conf;
+	if (argc == 2)
+	{
+		ConfigParser conf;
 
-		try {
+		try
+		{
 			conf.readConfig(argv[1]);
 			// conf.printAll();
-		} catch(const std::exception &e) {
+		}
+		catch (const std::exception &e)
+		{
 			std::cout << "what(): " << e.what() << std::endl;
 			return 1;
 		}
 
-		Server	server(conf);
+		Server server(conf);
 		(void)server;
 	}
 

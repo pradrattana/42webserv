@@ -3,7 +3,7 @@ NAME = webserv
 OBJ_DIR = objs/
 
 CC = c++
-CFLAGS = -Wall -Werror -Wextra -std=c++98
+CFLAGS = -Wall -Werror -Wextra -fsanitize=address -std=c++98 
 RM = rm
 
 SRC_FILE = ConfigParser RequestParser Response DirListing Server Socket main
@@ -13,7 +13,7 @@ OBJS = $(addprefix $(OBJ_DIR), $(addsuffix .o, $(SRC_FILE)))
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@
+	$(CC) $(CFLAGS) $(OBJS) -o $@ 
 
 $(OBJ_DIR)%.o: %.cpp
 	@mkdir -p $(OBJ_DIR)
