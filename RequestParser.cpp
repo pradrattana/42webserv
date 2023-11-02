@@ -37,6 +37,7 @@ void	RequestParser::readRequest(const std::string &src) {
 			break;
 	parseRequestLine(line);
 	parseHeaders(iss);
+	parseMessageBody(iss);
 }
 
 void	RequestParser::parseRequestLine(const std::string &line) {
@@ -59,40 +60,54 @@ void	RequestParser::parseHeaders(std::istringstream &src) {
 	std::string			line, key, val;
 
 	while (std::getline(src, line)) {
-		if (!line.empty()) {
-			ss.clear();
-			ss.str(line);
-			ss >> key >> std::ws;
+		if (line.empty() || line == "\r")
+			break;
 
-			if (key[key.length() - 1] == ':') {
-				key.erase(key.length() - 1);
-				if (ss >> val >> std::ws) {
-					_headers[key] = val;
-					continue;
-				}
+		ss.clear();
+		ss.str(line);
+		ss >> key >> std::ws;
+
+		if (key[key.length() - 1] == ':') {
+			key.erase(key.length() - 1);
+			if (ss >> val >> std::ws) {
+				_headers[key] = val;
+				continue;
 			}
-			// throw
 		}
 	}
 }
 
-const std::string	RequestParser::toEnv(const t_locationData &servLoc) const {
-	std::ostringstream		oss;
-	std::string				host, extrauri, key;
+void	RequestParser::parseMessageBody(std::istringstream &src) {
+	try {
+		_msgBody = src.str().substr(src.tellg());
+	} catch(const std::exception& e) {
+		std::cerr << e.what() << '\n';
+	}
+	
+}
+
+char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env) {
+	std::map<std::string, std::string>	envMap;
+	std::string				host, key, line;
 	std::string::size_type	pos;
 
 	host = _headers.at("Host");
-	extrauri = getUri().substr(getUri().find_first_not_of(servLoc.cgiPass));
 
-	oss << "SERVER_PROTOCOL=\"" << getVersion() << "\"\n";
+	envMap["SERVER_PROTOCOL"] = getVersion();
 	if ((pos = host.find(':')) != std::string::npos)
-		oss << "SERVER_PORT=\"" << host.substr(host.find(':') + 1) << "\"\n";
-	oss << "REQUEST_METHOD=\"" << getMethod() << "\"\n";
+		envMap["SERVER_PORT"] = host.substr(host.find(':') + 1);
+	envMap["REQUEST_METHOD"] = getMethod();
 
-	oss << "SCRIPT_NAME=\"" << servLoc.cgiPass << "\"\n";
-	oss << "PATH_INFO=\"" << extrauri << "\"\n";
-	oss << "PATH_TRANSLATED=\"" << std::getenv("PWD") << servLoc.root << extrauri << "\"\n";
-	oss << "QUERY_STRING=\"" << getQuery() << "\"\n";
+	pos = getUri().find('.');
+	if ((pos = getUri().find('/', pos)) != std::string::npos) {
+		envMap["PATH_INFO"] = getUri().substr(pos);
+		envMap["PATH_TRANSLATED"] = servLoc.root + getUri().substr(pos);
+	}
+	envMap["SERVER_PROTOCOL"] = getVersion();
+	envMap["SCRIPT_NAME"] = getUri().substr(0, pos);
+	envMap["SCRIPT_FILENAME"] = servLoc.root + getUri().substr(0, pos);
+	if (!getQuery().empty())
+		envMap["QUERY_STRING"] = getQuery();
 
 	for (std::map<std::string, std::string>::const_iterator it = _headers.begin();
 			it != _headers.end(); it++)
@@ -101,10 +116,27 @@ const std::string	RequestParser::toEnv(const t_locationData &servLoc) const {
 		while ((pos = key.find('-')) != std::string::npos)
 			key.replace(pos, 1, "_");
 		std::transform(key.begin(), key.end(), key.begin(), ::toupper);
-		oss << "HTTP_" << key << "=\"" << it->second << "\"\n";
+		if (key == "CONTENT_LENGTH" || key == "CONTENT_TYPE")
+			envMap[key] = it->second;
+		else
+			envMap["HTTP_" + key] = it->second;
 	}
 
-	return oss.str();
+	env = new char*[envMap.size() + 2];
+	int	i = 0;
+	for (std::map<std::string, std::string>::const_iterator it = envMap.begin();
+			it != envMap.end(); it++)
+	{
+		line = it->first + "=";
+		line += it->second;
+		env[i] = new char[line.length() + 1];
+		strcpy(env[i++], line.c_str());
+	}
+	line = "REDIRECT_STATUS=200";
+	env[i] = new char[line.length() + 1];
+	strcpy(env[i++], line.c_str());
+	env[i] = NULL;
+	return env;
 }
 
 const std::string	&RequestParser::getMethod() const {
@@ -125,4 +157,8 @@ const std::string	&RequestParser::getVersion() const {
 
 const std::map<std::string, std::string>	&RequestParser::getHeaders() const {
 	return _headers;
+}
+
+const std::string	&RequestParser::getMessageBody() const {
+	return _msgBody;
 }

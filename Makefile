@@ -6,7 +6,7 @@ CC = c++
 CFLAGS = -Wall -Werror -Wextra -fsanitize=address -std=c++98 
 RM = rm
 
-SRC_FILE = ConfigParser RequestParser Response DirListing Server Socket main
+SRC_FILE = ConfigParser RequestParser Response DirListing Server Socket CgiHandler main
 SRCS = $(addsuffix .cpp, $(SRC_FILE))
 OBJS = $(addprefix $(OBJ_DIR), $(addsuffix .o, $(SRC_FILE)))
 

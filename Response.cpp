@@ -1,6 +1,6 @@
 #include "Response.hpp"
 
-Response::Response(void)
+Response::Response(void) : _cgi(this)
 {
 	// std::cout << "Default constructor called by <Response>" << std::endl;
 	initStatusMapping();
@@ -12,13 +12,13 @@ Response::Response(const Response &src)
 	*this = src;
 }
 
-Response::Response(const std::set<t_serverData> &serv, const std::string &buf)
+Response::Response(const std::set<t_serverData> &serv, const std::string &buf) : _cgi(this)
 {
 	initStatusMapping();
 	_request.readRequest(buf);
+	// std::cout << buf << std::endl;
 	try
 	{
-		// std::cout << buf << std::endl;
 		setRequestLocation(serv);
 		methodHandler();
 	}
@@ -149,6 +149,14 @@ void Response::setMessageBody()
 	_msgBody.assign(std::istreambuf_iterator<char>(ifs),
 					std::istreambuf_iterator<char>());
 	ifs.close();
+}
+
+void	Response::setMessageBody(const std::string &s) {
+	_msgBody = s;
+}
+
+void	Response::setHeaders(const std::string &k, const std::string &v) {
+	_headers[k] = v;
 }
 
 bool Response::setFullPath()
@@ -286,11 +294,12 @@ void Response::methodHandler()
 		std::cout << _request.getMethod() << "\n";
 		for (std::set<std::string> ::iterator it = _reqLoc.limExcept.begin(); it != _reqLoc.limExcept.end(); it++)
 			std::cout << "_reqLoc : " << _reqLoc.limExcept.begin()->c_str() << "\n";
+
 		if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
 					  _request.getMethod()) != _reqLoc.limExcept.end())
 			(this->*method[_request.getMethod()])();
-		else if (_request.getMethod() == "POST")
-			(this->*method[_request.getMethod()])();
+		// else if (_request.getMethod() == "POST")
+		// 	(this->*method[_request.getMethod()])();
 		else
 			throw 405;
 	}
@@ -318,48 +327,43 @@ void Response::methodGet()
 		}
 		else
 			throw 403;
-	}
-	else
-	{
+	} else if (_fullPath.find(".php") == std::string::npos) {
 		setMessageBody();
 		setContentLength();
 		setContentType();
+	} else {
+		// _request.toEnv(_reqLoc);
+		_cgi.executeCgi();
 	}
+	// else
+	// {
+	// 	setMessageBody();
+	// 	setContentLength();
+	// 	setContentType();
+	// }
 
 	_code = 200;
 }
 
 void Response::methodPost()
 {
-	std::cout << "methodPost" << std::endl;
-	std::cout << "response : " << _response << std::endl;
-	std::cout << "request : " << _request.getUri() << std::endl;
-	std::cout << _request.getHeaders().begin()->first << std::endl;
-	std::cout << _request.getHeaders().begin()->second << std::endl;
-	_request.getHeaders().begin()++;
-	std::cout << _request.getHeaders().begin()->first << std::endl;
-	std::cout << _request.getHeaders().begin()->second << std::endl;
+	_cgi.executeCgi();
+	_code = 200;
+	// std::cout << "methodPost" << std::endl;
+	// std::cout << "response : " << _response << std::endl;
+	// std::cout << "request : " << _request.getUri() << std::endl;
+	// std::cout << _request.getHeaders().begin()->first << std::endl;
+	// std::cout << _request.getHeaders().begin()->second << std::endl;
+	// _request.getHeaders().begin()++;
+	// std::cout << _request.getHeaders().begin()->first << std::endl;
+	// std::cout << _request.getHeaders().begin()->second << std::endl;
 }
 
 void Response::methodDelete() {}
 
-const std::string Response::toEnv() const
+char	**Response::toEnv(char **&env)
 {
-	std::ostringstream oss;
-	std::string key;
-	std::string::size_type pos;
-
-	for (std::map<std::string, std::string>::const_iterator it = _headers.begin();
-		 it != _headers.end(); it++)
-	{
-		key = it->first;
-		while ((pos = key.find('-')) != std::string::npos)
-			key.replace(pos, 1, "_");
-		std::transform(key.begin(), key.end(), key.begin(), ::toupper);
-		oss << key << "=\"" << it->second << "\"\n";
-	}
-
-	return oss.str();
+	return _request.toEnv(_reqLoc, env);
 }
 
 const std::string &Response::getResponse() const
@@ -391,3 +395,14 @@ const std::string &Response::getMessageBody() const
 {
 	return _msgBody;
 }
+
+const std::map<std::string, std::string> &Response::getHeaders() const
+{
+	return	_headers;
+}
+
+const RequestParser	&Response::getRequest() const
+{
+	return _request;
+}
+

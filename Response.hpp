@@ -15,6 +15,7 @@
 # include <utility>
 # include "ConfigParser.hpp"
 # include "RequestParser.hpp"
+# include "CgiHandler.hpp"
 # include "webservStruct.hpp"
 # include "helper.hpp"
 
@@ -27,29 +28,24 @@ public:
 	Response &operator= (const Response &);
 
 	const std::string	getStatusLine() const;
+	const std::map<std::string, std::string>	&getHeaders() const;
 	const std::string	getHeadersText() const;
 	const std::string	&getMessageBody() const;
 	const std::string	&getResponse() const;
+	const RequestParser	&getRequest() const;
 
-	const std::string	toEnv() const;
+	char	**toEnv(char **&);
 
 	void	setResponse();
 	void	setMessageBody();
+	void	setMessageBody(const std::string &);
+	void	setHeaders(const std::string &, const std::string &);
 
-	// void	setCacheControl();
 	void	setConnection();
 	void	setDate();
-
-	// void	setContentEncoding();
-	// void	setContentLanguage();
 	void	setContentLength();
 	void	setLocation();
-	// void	setContentMD5();
-	// void	setContentRange();
 	void	setContentType();
-	// void	setExpires();
-	// void	setLastModified();
-	// void	setExtensionHeader();
 
 	void	directoryListing();
 
@@ -68,6 +64,7 @@ public:
 
 
 private:
+	CgiHandler		_cgi;
 	RequestParser	_request;
 	t_locationData	_reqLoc; 
 	t_locationData	_errLoc; 

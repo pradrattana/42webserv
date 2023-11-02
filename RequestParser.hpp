@@ -29,13 +29,14 @@ public:
 	RequestParser &operator= (const RequestParser &);
 
 	void	readRequest(const std::string &);
-	const std::string	toEnv(const t_locationData &) const;
+	char	**toEnv(const t_locationData &, char **&);
 
 	const std::string	&getMethod() const;
 	const std::string	&getUri() const;
 	const std::string	&getQuery() const;
 	const std::string	&getVersion() const;
 	const std::map<std::string, std::string>	&getHeaders() const;
+	const std::string	&getMessageBody() const;
 
 
 private:
@@ -45,6 +46,7 @@ private:
 
 	void	parseRequestLine(const std::string &);
 	void	parseHeaders(std::istringstream &);
+	void	parseMessageBody(std::istringstream &);
 
 };
 
