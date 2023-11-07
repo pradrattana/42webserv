@@ -2,21 +2,21 @@
 
 Response::Response(void) : _cgi(this)
 {
-	// std::cout << "Default constructor called by <Response>" << std::endl;
 	initStatusMapping();
 }
 
 Response::Response(const Response &src)
 {
-	// std::cout << "Copy constructor called by <Response>" << std::endl;
 	*this = src;
 }
 
-Response::Response(const std::set<t_serverData> &serv, const std::string &buf) : _cgi(this)
+Response::Response(const std::set<t_serverData> &serv, int sockfd) : _cgi(this)
 {
+	_request.readRequest(sockfd);
+	if (_request.getReadLen() == 0)
+		return ;
+
 	initStatusMapping();
-	_request.readRequest(buf);
-	// std::cout << buf << std::endl;
 	try
 	{
 		setRequestLocation(serv);
@@ -30,17 +30,16 @@ Response::Response(const std::set<t_serverData> &serv, const std::string &buf) :
 	{
 		return;
 	}
+	// std::cout << "SET RESPONSE\n";
 	setResponse();
 }
 
 Response::~Response(void)
 {
-	// std::cout << "Destructor called by <Response>" << std::endl;
 }
 
 Response &Response::operator=(const Response &src)
 {
-	// std::cout << "Copy assignment operator called by <Response>" << std::endl;
 	(void)src;
 	return *this;
 }
@@ -127,11 +126,10 @@ void Response::setResponse()
 {
 	std::ostringstream oss;
 
+	// std::cout << "CODE " << _code << "\n";
 	if (_code != 200)
 	{
-		// std::cout << "error " << _code << " ";
 		setErrorPath();
-		// std::cout << "path: " << _fullPath << "\n";
 		setMessageBody();
 		setContentType();
 		setContentLength();
@@ -139,6 +137,14 @@ void Response::setResponse()
 	oss << getStatusLine() << getHeadersText() << "\r\n"
 		<< _msgBody;
 	_response = oss.str();
+}
+
+void	Response::setCode(const int c) {
+	_code = c;
+}
+
+void	Response::setHeader(const std::string &k, const std::string &v) {
+	_headers[k] = v;
 }
 
 void Response::setMessageBody()
@@ -153,10 +159,6 @@ void Response::setMessageBody()
 
 void	Response::setMessageBody(const std::string &s) {
 	_msgBody = s;
-}
-
-void	Response::setHeaders(const std::string &k, const std::string &v) {
-	_headers[k] = v;
 }
 
 bool Response::setFullPath()
@@ -327,28 +329,26 @@ void Response::methodGet()
 		}
 		else
 			throw 403;
-	} else if (_fullPath.find(".php") == std::string::npos) {
+	}
+	else if (_fullPath.find(".php") == std::string::npos)
+	{
 		setMessageBody();
 		setContentLength();
 		setContentType();
-	} else {
-		// _request.toEnv(_reqLoc);
-		_cgi.executeCgi();
 	}
-	// else
-	// {
-	// 	setMessageBody();
-	// 	setContentLength();
-	// 	setContentType();
-	// }
+	else
+	{
+		_cgi.executeCgi();
+		return;
+	}
 
 	_code = 200;
 }
 
 void Response::methodPost()
 {
+	setDate();
 	_cgi.executeCgi();
-	_code = 200;
 	// std::cout << "methodPost" << std::endl;
 	// std::cout << "response : " << _response << std::endl;
 	// std::cout << "request : " << _request.getUri() << std::endl;
@@ -359,7 +359,10 @@ void Response::methodPost()
 	// std::cout << _request.getHeaders().begin()->second << std::endl;
 }
 
-void Response::methodDelete() {}
+void Response::methodDelete()
+{
+
+}
 
 char	**Response::toEnv(char **&env)
 {
@@ -405,4 +408,3 @@ const RequestParser	&Response::getRequest() const
 {
 	return _request;
 }
-

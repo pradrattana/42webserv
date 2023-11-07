@@ -1,24 +1,21 @@
 #include "RequestParser.hpp"
 
-RequestParser::RequestParser(void) {
-	// std::cout << "Default constructor called by <RequestParser>" << std::endl;
+RequestParser::RequestParser(void) : _msgLen(0), _readLen(0)
+{
 }
 
-RequestParser::RequestParser(const RequestParser &src) {
-	// std::cout << "Copy constructor called by <RequestParser>" << std::endl;
+RequestParser::RequestParser(const RequestParser &src) : _msgLen(0), _readLen(0)
+{
 	*this = src;
 }
 
-RequestParser::RequestParser(const std::string &src) {
-	readRequest(src);
+RequestParser::~RequestParser(void)
+{
+	delete[] _msgBody;
 }
 
-RequestParser::~RequestParser(void) {
-	// std::cout << "Destructor called by <RequestParser>" << std::endl;
-}
-
-RequestParser &RequestParser::operator= (const RequestParser &src) {
-	// std::cout << "Copy assignment operator called by <RequestParser>" << std::endl;
+RequestParser &RequestParser::operator= (const RequestParser &src)
+{
 	_reqLine.method = src.getMethod();
 	_reqLine.uri = src.getUri();
 	_reqLine.query = src.getQuery();
@@ -28,16 +25,62 @@ RequestParser &RequestParser::operator= (const RequestParser &src) {
 	return *this;
 }
 
-void	RequestParser::readRequest(const std::string &src) {
-	std::istringstream	iss(src);
-	std::string			line;
+size_t	RequestParser::readToBuf(int sockfd, char *&buf)
+{
+	size_t	bufsize = _readLen;
+	char	recvbuf[MAXLINE] = {0};
+	int		tmpReadLen = 0;
 
+	do {
+		tmpReadLen = recv(sockfd, recvbuf, MAXLINE, 0);
+		// std::cout << tmpReadLen << " ";
+		if (tmpReadLen == 0)
+		{
+			return bufsize > _readLen ? bufsize : 0;
+		}
+		else if (tmpReadLen < 0)
+		{
+			perror("recv");
+			return 0;
+		}
+		buf = myRealloc(buf, bufsize, bufsize + tmpReadLen + 1);
+		memmove(buf + bufsize, recvbuf, tmpReadLen);
+		buf[tmpReadLen] = 0;
+		bufsize += tmpReadLen;
+	} while (tmpReadLen >= MAXLINE);
+	return bufsize;
+}
+
+void	RequestParser::readRequest(int sockfd)
+{
+	char	*buf = NULL;
+	size_t	tmpReadLen = 0;
+	do
+	{
+		tmpReadLen = readToBuf(sockfd, buf);
+		if (tmpReadLen == 0)
+		{
+			delete[] buf;
+			return ;
+		}
+		_readLen += tmpReadLen;
+	} while (strstr(buf, "\r\n\r\n") == NULL);
+
+	std::istringstream	iss(buf);
+	std::string			line;
 	while (std::getline(iss, line))
 		if (!line.empty())
 			break;
 	parseRequestLine(line);
 	parseHeaders(iss);
-	parseMessageBody(iss);
+	// std::cout << getUri() << " ";
+	try {
+		parseMessageBody(iss.tellg(), sockfd, buf);
+	} catch (int) {
+		return ;
+	}
+
+	delete[] buf;
 }
 
 void	RequestParser::parseRequestLine(const std::string &line) {
@@ -69,22 +112,39 @@ void	RequestParser::parseHeaders(std::istringstream &src) {
 
 		if (key[key.length() - 1] == ':') {
 			key.erase(key.length() - 1);
-			if (ss >> val >> std::ws) {
-				_headers[key] = val;
-				continue;
-			}
+			val = ss.str().substr(ss.tellg());
+			if (val.find("\r") != std::string::npos)
+				val.erase(val.find("\r"));
+			_headers[key] = val;
 		}
 	}
 }
 
-void	RequestParser::parseMessageBody(std::istringstream &src) {
-	try {
-		_msgBody = src.str().substr(src.tellg());
-	} catch(const std::exception& e) {
-		std::cerr << e.what() << '\n';
+void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf) {
+	size_t	tmpReadLen = 0;
+	if (getMethod() == "POST") {
+		while ((int)(_msgLen = _readLen - i) < atoi(_headers.at("Content-Length").c_str())) {
+			tmpReadLen = readToBuf(sockfd, buf);
+			if (tmpReadLen == 0) {
+				delete[] buf;
+				throw 0;
+			}
+			_readLen += tmpReadLen;
+		}
 	}
-	
+	_msgLen = _readLen - i;
+	_msgBody = new char[_msgLen + 1];
+	memmove(_msgBody, buf + i, _msgLen);
+	_msgBody[_msgLen] = 0;
 }
+
+// void RequestParser::setContentLength()
+// {
+// 	std::ostringstream oss;
+
+// 	oss << strlen(_msgBody);
+// 	_headers["Content-Length"] = oss.str();
+// }
 
 char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env) {
 	std::map<std::string, std::string>	envMap;
@@ -95,7 +155,7 @@ char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env) {
 
 	envMap["SERVER_PROTOCOL"] = getVersion();
 	if ((pos = host.find(':')) != std::string::npos)
-		envMap["SERVER_PORT"] = host.substr(host.find(':') + 1);
+		envMap["SERVER_PORT"] = host.substr(pos + 1);
 	envMap["REQUEST_METHOD"] = getMethod();
 
 	pos = getUri().find('.');
@@ -159,6 +219,14 @@ const std::map<std::string, std::string>	&RequestParser::getHeaders() const {
 	return _headers;
 }
 
-const std::string	&RequestParser::getMessageBody() const {
+const char	*RequestParser::getMessageBody() const {
 	return _msgBody;
+}
+
+const size_t	&RequestParser::getMessageBodyLen() const {
+	return _msgLen;
+}
+
+const size_t	&RequestParser::getReadLen() const {
+	return _readLen;
 }

@@ -47,4 +47,12 @@ inline bool isIPv4(const std::string &s) {
 	return false;
 }
 
+template< class T >
+T	*myRealloc(T *old, size_t oldSize, size_t newSize) {
+	T	*ptr = new T[newSize];
+	memmove(ptr, old, oldSize);
+	delete[] old;
+	return ptr;
+}
+
 #endif

@@ -13,6 +13,7 @@
 # include <map>
 # include <set>
 # include <utility>
+# include <algorithm>
 # include "ConfigParser.hpp"
 # include "RequestParser.hpp"
 # include "CgiHandler.hpp"
@@ -23,6 +24,8 @@ class Response {
 public:
 	Response();
 	Response(const Response &);
+	Response(const std::set<t_serverData> &, int);
+	Response(const std::set<t_serverData> &, const char *, size_t);
 	Response(const std::set<t_serverData> &, const std::string &);
 	~Response();
 	Response &operator= (const Response &);
@@ -39,7 +42,8 @@ public:
 	void	setResponse();
 	void	setMessageBody();
 	void	setMessageBody(const std::string &);
-	void	setHeaders(const std::string &, const std::string &);
+	void	setHeader(const std::string &, const std::string &);
+	void	setCode(const int);
 
 	void	setConnection();
 	void	setDate();

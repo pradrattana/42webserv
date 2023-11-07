@@ -4,7 +4,6 @@ bool Server::_isRunning = true;
 
 Server::Server(void)
 {
-	// std::cout << "Default constructor called by <Server>" << std::endl;
 }
 
 Server::Server(const ConfigParser &conf)
@@ -16,18 +15,15 @@ Server::Server(const ConfigParser &conf)
 
 Server::Server(const Server &src)
 {
-	// std::cout << "Copy constructor called by <Server>" << std::endl;
 	*this = src;
 }
 
 Server::~Server(void)
 {
-	// std::cout << "Destructor called by <Server>" << std::endl;
 }
 
 Server &Server::operator=(const Server &src)
 {
-	// std::cout << "Copy assignment operator called by <Server>" << std::endl;
 	_allSock = src._allSock;
 	_allSet = src._allSet;
 	_readSet = src._readSet;
@@ -159,35 +155,25 @@ int Server::addNewConnection(Socket *s, int &nready)
 
 int Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ, int &nready)
 {
-	char buf[MAXLINE] = {0};
-	int sockfd, readLen;
+	int 	sockfd;
 
 	if ((sockfd = fdToServ.first) < 0)
+	{
 		return 0;
+	}
 
 	if (FD_ISSET(sockfd, &_readSet))
 	{
-		// std::cout << "cli accept fd " << sockfd << "\n";
-		if ((readLen = read(sockfd, buf, MAXLINE)) == 0)
+		Response rp(fdToServ.second, sockfd);
+		if (rp.getRequest().getReadLen() == 0)
 		{
-			std::cout << "readlen=0 close=";
-			std::cout << close(sockfd) << "\n";
 			FD_CLR(sockfd, &_allSet);
 			_cli.erase(sockfd);
+			return 0;
 		}
-		else if (readLen < 0)
-		{
-		}
-		else
-		{
-			Response rp(fdToServ.second, (std::string(buf)));
-			const char *response = rp.getResponse().c_str();
+		const char *response = rp.getResponse().c_str();
+		write(sockfd, response, strlen(response));
 
-			// std::cout << "Request\n"
-			// 		  << buf << "\n";
-			write(sockfd, response, strlen(response));
-			// std::cout << "readlen>0\n";
-		}
 		return (--nready <= 0);
 	}
 	return 0;

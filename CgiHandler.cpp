@@ -26,13 +26,21 @@ const std::string	CgiHandler::getCgiFullPath(const std::string &s) const {
 
 void	CgiHandler::setBodyAndHeaders(const std::string buf) {
 	std::stringstream ss(buf);
-	std::string line;
+	std::string line, key, val;
 	
+	_res->setCode(200);
 	while (std::getline(ss, line)) {
 		if (line.empty() || line == "\r")
 			break;
 		std::string::size_type	pos = line.find(": ");
-		_res->setHeaders(line.substr(0, pos), line.substr(pos + 2));
+		key = line.substr(0, pos);
+		val = line.substr(pos + 2);
+		if ((pos = val.rfind("\r")) != std::string::npos)
+			val.erase(pos);
+		if (key == "Status")
+			_res->setCode(atoi(val.c_str()));
+		else
+			_res->setHeader(key, val);
 	}
 	_res->setMessageBody(buf.substr(ss.tellg()));
 	try {
@@ -45,15 +53,15 @@ void	CgiHandler::setBodyAndHeaders(const std::string buf) {
 
 void	CgiHandler::executeCgi() {
 	int		pp[4];
-	int		pid, pid2, res;
+	int		pid, pid2;
 
 	pipe(pp);
 	if ((pid = fork()) < 0) {
 		exit(1);
 	} else if (pid == 0) {
 		close(pp[0]);
-		write(pp[1], _res->getRequest().getMessageBody().c_str(),
-			_res->getRequest().getMessageBody().length());
+		write(pp[1], _res->getRequest().getMessageBody(),
+			_res->getRequest().getMessageBodyLen());
 		close(pp[1]);
 		exit(0);
 	}
@@ -72,8 +80,7 @@ void	CgiHandler::executeCgi() {
 		_res->toEnv(env);
 		char	*args[] = { (char *)"php-cgi", NULL };
 
-		res = execve(getCgiFullPath("php-cgi").c_str(), args, env);
-		if (res < 0)
+		if (execve(getCgiFullPath("php-cgi").c_str(), args, env) < 0)
 			perror("execve");
 		close(pp[0]);
 		close(pp[3]);
@@ -90,9 +97,9 @@ void	CgiHandler::executeCgi() {
 	if (bytes_read == -1) {
 		perror("read in cgi");
 	}
-
 	buf[bytes_read] = 0;
-	std::cout << buf;
+
+	// std::cout << "\nCGI RES\n" << buf << "\n";
 	setBodyAndHeaders(buf);
 }
 

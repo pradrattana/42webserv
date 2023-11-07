@@ -35,11 +35,11 @@ public:
 	~Server();
 	Server &operator=(const Server &);
 
-	void initAllSocket(const std::vector<t_serverData> &);
-	void initAllFdset();
-	void waiting();
-	int addNewConnection(Socket *, int &);
-	int checkClient(std::pair<const int, std::set<t_serverData> > &, int &);
+	void	initAllSocket(const std::vector<t_serverData> &);
+	void	initAllFdset();
+	void	waiting();
+	int		addNewConnection(Socket *, int &);
+	int		checkClient(std::pair<const int, std::set<t_serverData> > &, int &);
 
 	static bool _isRunning;
 
@@ -47,7 +47,7 @@ private:
 	std::vector<Socket *> _allSock;
 	fd_set _allSet;
 	fd_set _readSet;
-	int _maxFd;
+	int 	_maxFd;
 	std::map<int, std::set<t_serverData> > _portToServ;
 	std::map<int, std::set<t_serverData> > _cli;
 };
