@@ -18,13 +18,15 @@
 #include <set>
 #include <map>
 #include <signal.h>
+#include <sys/wait.h>
 #include "ConfigParser.hpp"
 #include "RequestParser.hpp"
 #include "Response.hpp"
 #include "Socket.hpp"
 #include "webservStruct.hpp"
+#include "cgi/CgiPostHandle.hpp"
 
-#define MAXLINE 3000
+#define MAXLINE 100000
 
 class Server
 {

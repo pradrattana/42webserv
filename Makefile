@@ -3,14 +3,16 @@ NAME = webserv
 OBJ_DIR = objs/
 
 CC = c++
-CFLAGS = -Wall -Werror -Wextra -fsanitize=address -std=c++98 
+CFLAGS = -Wall -Werror -Wextra -g -std=c++98 
 RM = rm
 
 SRC_FILE = ConfigParser RequestParser Response DirListing Server Socket main
+
 SRCS = $(addsuffix .cpp, $(SRC_FILE))
 OBJS = $(addprefix $(OBJ_DIR), $(addsuffix .o, $(SRC_FILE)))
 
 all: $(NAME)
+	c++ -Wall -Werror -Wextra -std=c++98 -g cgi-bin/CgiFormHandle.cpp cgi/CgiPostHandle.cpp -o cgi-bin/testcgi
 
 $(NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@ 

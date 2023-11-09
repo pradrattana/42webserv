@@ -35,13 +35,12 @@ Socket &Socket::operator=(const Socket &src)
 void Socket::initSocket(const t_listenData &lsn)
 {
 	// creates socket to perform network I/O
-	if ((_lsnFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((_lsnFd = socket(PF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
 
-	fcntl(_lsnFd, F_SETFL, O_NONBLOCK);
 	// int    on = 1;
 	// ioctl(_lsnFd, FIONBIO, (char *)&on);
 
@@ -52,6 +51,7 @@ void Socket::initSocket(const t_listenData &lsn)
 
 	// assigns a local protocol address to a socket
 	setsockopt(_lsnFd, SOL_SOCKET, SO_REUSEADDR, (char *)&_servAddr, sizeof(_servAddr));
+	fcntl(_lsnFd, F_SETFL, O_NONBLOCK);
 	if (bind(_lsnFd, (struct sockaddr *)&_servAddr,
 			 sizeof(_servAddr)) < 0)
 	{

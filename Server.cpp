@@ -88,9 +88,13 @@ static void sigHandler(int signo)
 void Server::waiting()
 {
 	int nready;
+	// struct timeval       timeout;
 
 	signal(SIGINT, sigHandler);
 	signal(SIGQUIT, sigHandler);
+	// timeout.tv_sec  = 0; //3 * 60;
+	// timeout.tv_usec = 0;
+
 	while (_isRunning)
 	{
 		_readSet = _allSet;
@@ -117,21 +121,6 @@ void Server::waiting()
 			}
 		}
 	}
-	//clear all bit fd in _cli
-	// for (std::map<int, std::set<t_serverData> >::iterator it = _cli.begin();
-	// 	 it != _cli.end();)
-	// {
-	// 	std::map<int, std::set<t_serverData> >::iterator itNext = ++it;
-	// 	it--;
-	// 	int sockfd;
-	// 	if (FD_ISSET(sockfd, &_readSet))
-	// 	{
-	// 		std::cout << close(sockfd) << "\n";
-	// 		FD_CLR(sockfd, &_allSet);
-	// 		_cli.erase(sockfd);
-	// 	}
-	// 	it = itNext;
-	// }
 	//clear memory in _allSock
 	for (std::vector<Socket *>::iterator it = _allSock.begin();
 		 it != _allSock.end(); it++)
@@ -157,37 +146,74 @@ int Server::addNewConnection(Socket *s, int &nready)
 	return (--nready <= 0);
 }
 
+const char *successResponse =
+	"HTTP/1.1 200 OK\r\n"
+	"Connection: close\r\n"
+	"\r\n"
+	"<html><body>File received successfully</body></html>";
+
+
 int Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ, int &nready)
 {
-	char buf[MAXLINE] = {0};
-	int sockfd, readLen;
+	// char buf[MAXLINE] = {0};
+	int sockfd;
+	(void)nready;
 
+	fcntl(fdToServ.first, F_SETFL, O_NONBLOCK);
+	// fcntl(fdToServ.first, F_SETFF, FNDELAY);
 	if ((sockfd = fdToServ.first) < 0)
 		return 0;
-
+	// ioctl(sockfd, FIONREAD, &readLen);
 	if (FD_ISSET(sockfd, &_readSet))
 	{
-		// std::cout << "cli accept fd " << sockfd << "\n";
-		if ((readLen = read(sockfd, buf, MAXLINE)) == 0)
-		{
-			std::cout << "readlen=0 close=";
-			std::cout << close(sockfd) << "\n";
-			FD_CLR(sockfd, &_allSet);
-			_cli.erase(sockfd);
+		std::ostringstream num;
+		num << sockfd;
+		std::cout << "sockd fd : " << sockfd << std::endl;
+		char *sock = new char[num.str().length() + 1];
+		strcpy(sock,const_cast<char *>(num.str().c_str()));
+		char cmd[18] = "./cgi-bin/testcgi";
+		int pid = fork();
+		if (pid == 0) {
+			char *arg[4] = {cmd, sock, sock, NULL};
+			if (execve(arg[0], &arg[0], NULL) == -1){
+				perror("");
+				std::cout << "execve failed\n";
+			}
 		}
-		else if (readLen < 0)
-		{
-		}
-		else
-		{
-			Response rp(fdToServ.second, (std::string(buf)));
-			const char *response = rp.getResponse().c_str();
+		waitpid(pid, NULL, 0);
+		delete[] sock;
+		FD_CLR(sockfd, &_allSet);
+		close(sockfd);
+		_cli.erase(sockfd);
+		// // std::cout << "cli accept fd " << sockfd << "\n";
+		// if ((readLen = read(sockfd, buf, MAXLINE)) == 0)
+		// {
+		// 	std::cout << "readlen=0 close=";
+		// 	std::cout << close(sockfd) << "\n";
+		// 	FD_CLR(sockfd, &_allSet);
+		// 	close(sockfd);
+		// 	_cli.erase(sockfd);
+		// }
+		// else if (readLen < 0)
+		// {
+		// 	if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        //     // Handle the case when the operation would block
+        //     	std::cout << "No data available right now." << std::endl;
+       	// 	} else {
+        //     // Handle other possible errors
+        //     	perror("Error while reading");
+        //     return 1;
+        // }
+		// }
+		// else
+		// {
+		// 	Response rp(fdToServ.second, (std::string(buf)));
+		// 	const char *response = rp.getResponse().c_str();
 
-			// std::cout << "Request\n"
-			// 		  << buf << "\n";
-			write(sockfd, response, strlen(response));
-			// std::cout << "readlen>0\n";
-		}
+		// 	std::cout << "Request\n"
+		// 			  << buf << "\n";
+		// 	write(sockfd, response, strlen(response));
+		// }
 		return (--nready <= 0);
 	}
 	return 0;

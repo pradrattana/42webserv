@@ -1,4 +1,5 @@
 #include "RequestParser.hpp"
+#include "colour.hpp"
 
 RequestParser::RequestParser(void) {
 	// std::cout << "Default constructor called by <RequestParser>" << std::endl;
@@ -57,20 +58,37 @@ void	RequestParser::parseRequestLine(const std::string &line) {
 void	RequestParser::parseHeaders(std::istringstream &src) {
 	std::stringstream	ss;
 	std::string			line, key, val;
-
 	while (std::getline(src, line)) {
 		if (!line.empty()) {
 			ss.clear();
 			ss.str(line);
-			ss >> key >> std::ws;
-
-			if (key[key.length() - 1] == ':') {
-				key.erase(key.length() - 1);
-				if (ss >> val >> std::ws) {
-					_headers[key] = val;
-					continue;
+			if (line.find(":") != std::string::npos){
+				size_t pos = line.find(":");
+				key = line.substr(0, pos);
+				val = line.substr(pos + 1, line.length());
+				if (val.find_first_not_of(' ') != std::string::npos) {
+					val = val.substr(val.find_first_not_of(' '), val.length());
 				}
+				// std::cout << "key : " << key << " val : " << val << std::endl;
+				_headers[key] = val;
+				if (val.find("boundary=") != std::string::npos) {
+					pos = val.find("boundary=");
+					key = "boundary";
+					val = val.substr(pos + 9, val.length());
+					_headers[key] = val;
+				}
+				continue;
+			// ss >> key >> std::ws;
+			// std::cout << BGRN << "line :" << line << WHT << std::endl;
 			}
+			// if (key[key.length() - 1] == ':') {
+			// 	key.erase(key.length() - 1);
+			// 	if (ss >> val >> std::ws) {
+			// 		// std::cout << "value " << val << std::endl;
+			// 		_headers[key] = val;
+			// 		continue;
+			// 	}
+			// }
 			// throw
 		}
 	}

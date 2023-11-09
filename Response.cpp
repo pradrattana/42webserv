@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include "colour.hpp"
 
 Response::Response(void)
 {
@@ -15,10 +16,13 @@ Response::Response(const Response &src)
 Response::Response(const std::set<t_serverData> &serv, const std::string &buf)
 {
 	initStatusMapping();
+	std::cout << CYN << buf << WHT << std::endl;
 	_request.readRequest(buf);
+	for (std::map<std::string, std::string>::const_iterator it = _request.getHeaders().begin();
+		 it != _request.getHeaders().end(); it++)
+		std::cout << CYN << it->first << ": " << it->second << WHT << std::endl;
 	try
 	{
-		// std::cout << buf << std::endl;
 		setRequestLocation(serv);
 		methodHandler();
 	}
@@ -283,9 +287,6 @@ void Response::methodHandler()
 	if (method.find(_request.getMethod()) != method.end())
 	{
 
-		std::cout << _request.getMethod() << "\n";
-		for (std::set<std::string> ::iterator it = _reqLoc.limExcept.begin(); it != _reqLoc.limExcept.end(); it++)
-			std::cout << "_reqLoc : " << _reqLoc.limExcept.begin()->c_str() << "\n";
 		if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
 					  _request.getMethod()) != _reqLoc.limExcept.end())
 			(this->*method[_request.getMethod()])();
@@ -332,13 +333,8 @@ void Response::methodGet()
 void Response::methodPost()
 {
 	std::cout << "methodPost" << std::endl;
-	std::cout << "response : " << _response << std::endl;
-	std::cout << "request : " << _request.getUri() << std::endl;
-	std::cout << _request.getHeaders().begin()->first << std::endl;
-	std::cout << _request.getHeaders().begin()->second << std::endl;
-	_request.getHeaders().begin()++;
-	std::cout << _request.getHeaders().begin()->first << std::endl;
-	std::cout << _request.getHeaders().begin()->second << std::endl;
+	std::cout << getHeadersText() << std::endl;
+	// size_t bytes = recv()
 }
 
 void Response::methodDelete() {}
@@ -391,3 +387,4 @@ const std::string &Response::getMessageBody() const
 {
 	return _msgBody;
 }
+
