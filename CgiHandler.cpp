@@ -51,7 +51,46 @@ void	CgiHandler::setBodyAndHeaders(const std::string buf) {
 }
 
 
+
 void	CgiHandler::executeCgi() {
+	int	pp[2];
+	int	pid;
+	FILE	*fp = fopen("myfile.bin", "r");
+
+	pipe(pp);
+	if ((pid = fork()) < 0) {
+		exit(1);
+	} else if (pid == 0) {
+		close(pp[0]);
+		dup2(fileno(fp), 0);
+		dup2(pp[1], 1);
+
+		char	**env = NULL;
+		_res->toEnv(env);
+		char	*args[] = { (char *)"php-cgi", NULL };
+		if (execve(getCgiFullPath("php-cgi").c_str(), args, env) < 0)
+			perror("execve");
+
+		close(pp[1]);
+		exit(0);
+	}
+	close(pp[1]);
+	waitpid(pid, 0, 0);
+
+	char buf[1024];
+	int bytes_read = read(pp[0], buf, sizeof(buf));
+
+	close(pp[0]);
+	if (bytes_read == -1) {
+		perror("read in cgi");
+	}
+	buf[bytes_read] = 0;
+
+	// std::cout << "\nCGI RES\n" << buf << "\n";
+	setBodyAndHeaders(buf);
+}
+
+/*void	CgiHandler::executeCgi() {
 	int		pp[4];
 	int		pid, pid2;
 
@@ -101,7 +140,7 @@ void	CgiHandler::executeCgi() {
 
 	// std::cout << "\nCGI RES\n" << buf << "\n";
 	setBodyAndHeaders(buf);
-}
+}*/
 
 /*void	CgiHandler::exportEnv() {
 	std::string	src(_res->toEnv());
