@@ -1,10 +1,10 @@
 #include "RequestParser.hpp"
 
-RequestParser::RequestParser(void) : _msgLen(0), _readLen(0)
+RequestParser::RequestParser(void): _msgBody(NULL), _msgLen(0), _readLen(0)
 {
 }
 
-RequestParser::RequestParser(const RequestParser &src) : _msgLen(0), _readLen(0)
+RequestParser::RequestParser(const RequestParser &src): _msgBody(NULL), _msgLen(0), _readLen(0)
 {
 	*this = src;
 }
@@ -16,12 +16,14 @@ RequestParser::~RequestParser(void)
 
 RequestParser &RequestParser::operator= (const RequestParser &src)
 {
-	_reqLine.method = src.getMethod();
-	_reqLine.uri = src.getUri();
-	_reqLine.query = src.getQuery();
-	_reqLine.version = src.getVersion();
-	_headers = src.getHeaders();
-	_msgBody = src._msgBody;
+	if (this != &src)
+	{
+		_reqLine = src._reqLine;
+		_headers = src._headers;
+		_msgBody = strdup(src._msgBody);
+		_msgLen = src._msgLen;
+		_readLen = src._readLen;
+	}
 	return *this;
 }
 
@@ -31,9 +33,9 @@ size_t	RequestParser::readToBuf(int sockfd, char *&buf)
 	char	recvbuf[MAXLINE] = {0};
 	int		tmpReadLen = 0;
 
-	do {
+	do
+	{
 		tmpReadLen = recv(sockfd, recvbuf, MAXLINE, 0);
-		// std::cout << tmpReadLen << " ";
 		if (tmpReadLen == 0)
 		{
 			return bufsize > _readLen ? bufsize : 0;
@@ -55,6 +57,7 @@ void	RequestParser::readRequest(int sockfd)
 {
 	char	*buf = NULL;
 	size_t	tmpReadLen = 0;
+
 	do
 	{
 		tmpReadLen = readToBuf(sockfd, buf);
@@ -74,30 +77,37 @@ void	RequestParser::readRequest(int sockfd)
 			break;
 	parseRequestLine(line);
 	parseHeaders(iss);
-	// std::cout << getUri() << " ";
-	try {
+
+	try
+	{
 		parseMessageBody(iss.tellg(), sockfd, buf);
-		if (_msgLen) {
-			FILE *fp = fopen("myfile.bin", "wb");
-			if (fp == NULL) {
+		if (_msgLen > 0)
+		{
+			FILE	*fp = fopen("myfile.bin", "wb");
+			if (fp == NULL)
+			{
 				// Error handling.
 			}
 			fwrite(_msgBody, sizeof(_msgBody[0]), _msgLen, fp);
 			fclose(fp);
 		}
-	} catch (int) {
+	} catch (int)
+	{
 		_readLen = 0;
 	}
 
 	free(buf);
 }
 
-void	RequestParser::parseRequestLine(const std::string &line) {
+void	RequestParser::parseRequestLine(const std::string &line)
+{
 	std::istringstream		iss(line);
 	std::string::size_type	queryPos;
 
-	if (iss >> _reqLine.method >> _reqLine.uri >> _reqLine.version >> std::ws) {
-		if ((queryPos = getUri().find('?')) != std::string::npos) {
+	if (iss >> _reqLine.method >> _reqLine.uri >> _reqLine.version >> std::ws)
+	{
+		if ((queryPos = getUri().find('?')) != std::string::npos)
+		{
 			_reqLine.query = _reqLine.uri.substr(queryPos + 1);
 			_reqLine.uri.erase(queryPos);
 		}
@@ -107,11 +117,13 @@ void	RequestParser::parseRequestLine(const std::string &line) {
 	// throw
 }
 
-void	RequestParser::parseHeaders(std::istringstream &src) {
+void	RequestParser::parseHeaders(std::istringstream &src)
+{
 	std::stringstream	ss;
 	std::string			line, key, val;
 
-	while (std::getline(src, line)) {
+	while (std::getline(src, line))
+	{
 		if (line.empty() || line == "\r")
 			break;
 
@@ -119,7 +131,8 @@ void	RequestParser::parseHeaders(std::istringstream &src) {
 		ss.str(line);
 		ss >> key >> std::ws;
 
-		if (key[key.length() - 1] == ':') {
+		if (key[key.length() - 1] == ':')
+		{
 			key.erase(key.length() - 1);
 			val = ss.str().substr(ss.tellg());
 			if (val.find("\r") != std::string::npos)
@@ -129,14 +142,18 @@ void	RequestParser::parseHeaders(std::istringstream &src) {
 	}
 }
 
-void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf) {
+void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf)
+{
 	size_t	tmpReadLen = 0;
 
-	if (getMethod() == "POST") {
+	if (getMethod() == "POST")
+	{
 		_msgLen = atoi(_headers.at("Content-Length").c_str());
-		while (_readLen - i < _msgLen) {
+		while (_readLen - i < _msgLen)
+		{
 			tmpReadLen = readToBuf(sockfd, buf);
-			if (tmpReadLen == 0) {
+			if (tmpReadLen == 0)
+			{
 				throw 0;
 			}
 			_readLen += tmpReadLen;
@@ -147,15 +164,8 @@ void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf) {
 	_msgBody[_msgLen] = 0;
 }
 
-// void RequestParser::setContentLength()
-// {
-// 	std::ostringstream oss;
-
-// 	oss << strlen(_msgBody);
-// 	_headers["Content-Length"] = oss.str();
-// }
-
-char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env) {
+char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env)
+{
 	std::map<std::string, std::string>	envMap;
 	std::string				host, key, line;
 	std::string::size_type	pos;
@@ -168,7 +178,8 @@ char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env) {
 	envMap["REQUEST_METHOD"] = getMethod();
 
 	pos = getUri().find('.');
-	if ((pos = getUri().find('/', pos)) != std::string::npos) {
+	if ((pos = getUri().find('/', pos)) != std::string::npos)
+	{
 		envMap["PATH_INFO"] = getUri().substr(pos);
 		envMap["PATH_TRANSLATED"] = servLoc.root + getUri().substr(pos);
 	}
@@ -208,34 +219,54 @@ char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env) {
 	return env;
 }
 
-const std::string	&RequestParser::getMethod() const {
+const std::string	&RequestParser::getMethod() const
+{
 	return _reqLine.method;
 }
 
-const std::string	&RequestParser::getUri() const {
+const std::string	&RequestParser::getUri() const
+{
 	return _reqLine.uri;
 }
 
-const std::string	&RequestParser::getQuery() const {
+const std::string	&RequestParser::getQuery() const
+{
 	return _reqLine.query;
 }
 
-const std::string	&RequestParser::getVersion() const {
+const std::string	&RequestParser::getVersion() const
+{
 	return _reqLine.version;
 }
 
-const std::map<std::string, std::string>	&RequestParser::getHeaders() const {
+const std::map<std::string, std::string>	&RequestParser::getHeaders() const
+{
 	return _headers;
 }
 
-const char	*RequestParser::getMessageBody() const {
+const char	*RequestParser::getMessageBody() const
+{
 	return _msgBody;
 }
 
-const size_t	&RequestParser::getMessageBodyLen() const {
+const size_t	&RequestParser::getMessageBodyLen() const
+{
 	return _msgLen;
 }
 
-const size_t	&RequestParser::getReadLen() const {
+const size_t	&RequestParser::getReadLen() const
+{
 	return _readLen;
+}
+
+RequestParser::t_reqLine &RequestParser::t_reqLine::operator=(const t_reqLine &src)
+{
+	if (this == &src)
+	{
+		method = src.method;
+		uri = src.uri;
+		query = src.query;
+		version = src.version;
+	}
+	return *this;
 }

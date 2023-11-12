@@ -19,7 +19,7 @@ int main(int argc, char **argv, char **env)
 		}
 		catch (const std::exception &e)
 		{
-			std::cout << "what(): " << e.what() << std::endl;
+			std::cout << "Error: " << e.what() << std::endl;
 			return 1;
 		}
 

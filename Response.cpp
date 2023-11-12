@@ -1,6 +1,6 @@
 #include "Response.hpp"
 
-Response::Response(void) : _cgi(this)
+Response::Response(void): _cgi(this)
 {
 	initStatusMapping();
 }
@@ -10,7 +10,7 @@ Response::Response(const Response &src)
 	*this = src;
 }
 
-Response::Response(const std::set<t_serverData> &serv, int sockfd) : _cgi(this)
+Response::Response(const std::set<t_serverData> &serv, int sockfd): _cgi(this)
 {
 	_request.readRequest(sockfd);
 	if (_request.getReadLen() == 0)
@@ -30,7 +30,6 @@ Response::Response(const std::set<t_serverData> &serv, int sockfd) : _cgi(this)
 	{
 		return;
 	}
-	// std::cout << "SET RESPONSE\n";
 	setResponse();
 }
 
@@ -40,7 +39,17 @@ Response::~Response(void)
 
 Response &Response::operator=(const Response &src)
 {
-	(void)src;
+	if (this != &src)
+	{
+		_cgi = src._cgi;
+		_request = src._request;
+		_fullPath = src._fullPath;
+		_response = src._response;
+		_code = src._code;
+		_headers = src._headers;
+		_msgBody = src._msgBody;
+		_statMaping = src._statMaping;
+	}
 	return *this;
 }
 
@@ -70,6 +79,7 @@ void Response::initStatusMapping()
 	_statMaping[404] = "Not Found";
 	_statMaping[405] = "Method Not Allowed";
 	_statMaping[406] = "Not Acceptable";
+	_statMaping[413] = "Content Too Large";
 
 	_statMaping[500] = "Internal Server Error";
 	_statMaping[501] = "Not Implemented";
@@ -127,7 +137,7 @@ void Response::setResponse()
 	std::ostringstream oss;
 
 	// std::cout << "CODE " << _code << "\n";
-	if (_code != 200)
+	if (!(_code == 200 || _code==302))
 	{
 		setErrorPath();
 		setMessageBody();
@@ -338,7 +348,7 @@ void Response::methodGet()
 	}
 	else
 	{
-		_cgi.executeCgi();
+		_cgi.executeCgi(_reqLoc.cgiPass);
 		return;
 	}
 
@@ -348,15 +358,10 @@ void Response::methodGet()
 void Response::methodPost()
 {
 	setDate();
-	_cgi.executeCgi();
-	// std::cout << "methodPost" << std::endl;
-	// std::cout << "response : " << _response << std::endl;
-	// std::cout << "request : " << _request.getUri() << std::endl;
-	// std::cout << _request.getHeaders().begin()->first << std::endl;
-	// std::cout << _request.getHeaders().begin()->second << std::endl;
-	// _request.getHeaders().begin()++;
-	// std::cout << _request.getHeaders().begin()->first << std::endl;
-	// std::cout << _request.getHeaders().begin()->second << std::endl;
+	if (_reqLoc.cliMax != 0)
+		if (_request.getMessageBodyLen() > _reqLoc.cliMax)
+			throw 413;
+	_cgi.executeCgi(_reqLoc.cgiPass);
 }
 
 void Response::methodDelete()

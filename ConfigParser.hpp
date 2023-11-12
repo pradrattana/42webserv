@@ -8,6 +8,7 @@
 # include <cstring>
 # include <cstdlib>
 # include <vector>
+# include <stack>
 # include <map>
 # include <algorithm>
 # include "helper.hpp"
@@ -16,11 +17,13 @@
 class ConfigParser {
 public:
 	ConfigParser();
+	ConfigParser(const char *);
 	ConfigParser(const ConfigParser &);
 	~ConfigParser();
 	ConfigParser &operator= (const ConfigParser &);
 
-	void	readConfig(const std::string &);
+	void	readConfig(const char *);
+
 	const std::vector<t_serverData>	&getServer() const;
 	void	printAll();
 
@@ -28,13 +31,14 @@ private:
 	std::vector<t_serverData>	_server;
 	std::map<
 		std::string, void (ConfigParser::*)(const std::string &, uintptr_t)
-	>								_funcMaping;
+	>							_func;
+
+	void	initFuncMapping();
+	void	initServMapping(std::map<std::string, uintptr_t> &, const t_serverData &);
+	void	initLocMapping(std::map<std::string, uintptr_t> &, const t_locationData &);
 
 	void	fillDefaultServer(t_serverData &);
-	void	fillDefaultLocation(t_serverData &, t_locationData &);
-	void	initFuncMapping();
-	void	initServPtrMapping(std::map<std::string, uintptr_t> &, const t_serverData &);
-	void	initLocPtrMapping(std::map<std::string, uintptr_t> &, const t_locationData &);
+	void	fillDefaultLocation(t_locationData &, const t_serverData &);
 
 	void	parseServer(std::ifstream &, t_serverData &);
 	void	parseLocation(std::ifstream &, t_locationData &);
@@ -50,13 +54,13 @@ private:
 	void	parseCgiPass(const std::string &, uintptr_t);
 
 	const std::string	parseHelper(const std::string &);
-	static bool			compareByUri(const t_locationData &, const t_locationData &);
 
 	class InvalidConfigException: public std::exception {
 	public:
 		const char	*what(void) const throw();
 	};
-
 };
+
+bool	compareByUri(const t_locationData &, const t_locationData &);
 
 #endif

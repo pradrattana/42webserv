@@ -20,24 +20,29 @@
 
 class RequestParser {
 private:
-	typedef struct reqLineData {
+	typedef struct reqLine
+	{
 		std::string	method;
 		std::string	uri;
 		std::string	query;
 		std::string	version;
-	}	t_reqLineData;
+		reqLine &operator=(const reqLine &src);
+	}	t_reqLine;
 
 public:
 	RequestParser();
-	RequestParser(const RequestParser &);
 	RequestParser(const std::string &);
+	RequestParser(const RequestParser &);
 	~RequestParser();
-	RequestParser &operator= (const RequestParser &);
+	RequestParser &operator=(const RequestParser &);
 
-	size_t	readToBuf(int, char *&);
 	void	readRequest(int);
+	size_t	readToBuf(int, char *&);
 	char	**toEnv(const t_locationData &, char **&);
-	// void	setContentLength();
+
+	void	parseRequestLine(const std::string &);
+	void	parseHeaders(std::istringstream &);
+	void	parseMessageBody(int, int, char *&);
 
 	const std::string	&getMethod() const;
 	const std::string	&getUri() const;
@@ -48,12 +53,8 @@ public:
 	const size_t	&getMessageBodyLen() const;
 	const size_t	&getReadLen() const;
 
-	void	parseRequestLine(const std::string &);
-	void	parseHeaders(std::istringstream &);
-	void	parseMessageBody(int, int, char *&);
-
 private:
-	t_reqLineData	_reqLine;
+	t_reqLine	_reqLine;
 	std::map<std::string, std::string>	_headers;
 	char		*_msgBody;
 	size_t		_msgLen;

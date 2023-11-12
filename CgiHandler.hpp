@@ -20,17 +20,19 @@ class Response;
 class CgiHandler {
 public:
 	CgiHandler();
+	CgiHandler(const CgiHandler &);
 	CgiHandler(Response *);
+	~CgiHandler();
+	CgiHandler &operator=(const CgiHandler &);
 
 	const std::string	getCgiFullPath(const std::string &) const;
-	void	executeCgi();
+	void	executeCgi(const std::string &);
 	// void	exportEnv();
 
-	void	setBodyAndHeaders(const std::string);
+	void	setBodyAndHeaders(const std::string &);
 
 private:
 	Response	*_res;
-	std::string	_env;
 };
 
 # include "Response.hpp"

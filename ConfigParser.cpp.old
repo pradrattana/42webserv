@@ -20,103 +20,11 @@ ConfigParser::~ConfigParser(void)
 {
 }
 
-ConfigParser &ConfigParser::operator=(const ConfigParser &src)
+ConfigParser &ConfigParser::operator= (const ConfigParser &src)
 {
-	if (this != &src)
-	{
-		_server = src._server;
-		_func = src._func;
-	}
+	_server = src._server;
+	_funcMaping = src._funcMaping;
 	return *this;
-}
-
-void	ConfigParser::readConfig(const char *src)
-{
-	std::ifstream	ifs(src);
-	std::string		line, col;
-
-	std::getline(ifs, line);
-	if (ifs.fail())
-	{
-		line = "Could not read the file: ";
-		if (ifs.eof())
-			line = "Reached the end of the file prematurely: ";
-		throw std::runtime_error(line.append(src));
-	}
-
-	do
-	{
-		trim(line);
-		if (!(line.empty() || line[0] == '#'))
-		{
-			std::stringstream	ss(line);
-			ss >> col >> std::ws;
-			if (col == "server")
-			{
-				if (ss.eof())
-				{
-					while (std::getline(ifs, line))
-					{
-						trim(line);
-						if (!(line.empty() || line[0] == '#'))
-						{
-							if (line != "{")
-								throw ConfigParser::InvalidConfigException();
-							break;
-						}
-					}
-				}
-				else if (ss.str().substr(ss.tellg()) != "{")
-					throw ConfigParser::InvalidConfigException();
-
-				_server.push_back(serverData());
-				parseServer(ifs, _server.back());
-				fillDefaultServer(_server.back());
-			}
-			else
-				throw ConfigParser::InvalidConfigException();
-		}
-	} while (std::getline(ifs, line));
-	if (!ifs.eof())
-		throw ConfigParser::InvalidConfigException();
-	ifs.close();
-}
-
-void	ConfigParser::initFuncMapping()
-{
-	_func["listen"] = &ConfigParser::parseListen;
-	_func["server_name"] = &ConfigParser::parseServName;
-	_func["root"] = &ConfigParser::parseRoot;
-	_func["index"] = &ConfigParser::parseIndex;
-	_func["autoindex"] = &ConfigParser::parseAutoIndex;
-	_func["client_max_body_size"] = &ConfigParser::parseCliMaxBodySize;
-	_func["error_page"] = &ConfigParser::parseErrPage;
-	_func["limit_except"] = &ConfigParser::parseLimitExcept;
-	_func["cgi_pass"] = &ConfigParser::parseCgiPass;
-}
-
-void	ConfigParser::initServMapping(std::map<std::string, uintptr_t> &servMap, const t_serverData &serv)
-{
-	servMap["listen"] = serialize(&serv.listen);
-	servMap["server_name"] = serialize(&serv.name);
-	servMap["root"] = serialize(&serv.root);
-	servMap["index"] = serialize(&serv.index);
-	servMap["autoindex"] = serialize(&serv.autoIdx);
-	servMap["client_max_body_size"] = serialize(&serv.cliMax);
-	servMap["error_page"] = serialize(&serv.errPage);
-	servMap["location"] = serialize(&serv.location);
-}
-
-void	ConfigParser::initLocMapping(std::map<std::string, uintptr_t> &locMap, const t_locationData &loc)
-{
-	locMap["listen"] = serialize(&loc.listen);
-	locMap["root"] = serialize(&loc.root);
-	locMap["index"] = serialize(&loc.index);
-	locMap["autoindex"] = serialize(&loc.autoIdx);
-	locMap["client_max_body_size"] = serialize(&loc.cliMax);
-	locMap["error_page"] = serialize(&loc.errPage);
-	locMap["limit_except"] = serialize(&loc.limExcept);
-	locMap["cgi_pass"] = serialize(&loc.cgiPass);
 }
 
 void	ConfigParser::fillDefaultServer(t_serverData &s)
@@ -138,8 +46,8 @@ void	ConfigParser::fillDefaultServer(t_serverData &s)
 		s.index.push_back("index.html");
 	if (s.autoIdx.empty())
 		s.autoIdx = "off";
-	if (s.cliMax == 0)
-		s.cliMax = 1000000;
+	if (s.cliMax.empty())
+		s.cliMax = "1m";
 	for (std::vector<t_locationData>::iterator it = s.location.begin();
 			it != s.location.end(); it++)
 	{
@@ -167,89 +75,180 @@ void	ConfigParser::fillDefaultLocation(t_locationData &l, const t_serverData &s)
 		l.index = s.index;
 	if (l.autoIdx.empty())
 		l.autoIdx = s.autoIdx;
-	if (l.cliMax == 0)
+	if (l.cliMax.empty())
 		l.cliMax = s.cliMax;
 	if (l.errPage.empty())
 		l.errPage = s.errPage;
 	l.limExcept.insert("GET");
 	l.limExcept.insert("HEAD");
-	if (l.cgiPass.empty())
-		l.cgiPass = "php-cgi";
 }
 
-void	ConfigParser::parseServer(std::ifstream &ifs, t_serverData &serv)
+void	ConfigParser::initFuncMapping()
 {
-	std::map<std::string, uintptr_t>	servMap;
-	std::string	line, col;
+	_funcMaping["listen"] = &ConfigParser::parseListen;
+	_funcMaping["server_name"] = &ConfigParser::parseServName;
+	_funcMaping["root"] = &ConfigParser::parseRoot;
+	_funcMaping["index"] = &ConfigParser::parseIndex;
+	_funcMaping["autoindex"] = &ConfigParser::parseAutoIndex;
+	_funcMaping["client_max_body_size"] = &ConfigParser::parseCliMaxBodySize;
+	_funcMaping["error_page"] = &ConfigParser::parseErrPage;
+	_funcMaping["limit_except"] = &ConfigParser::parseLimitExcept;
+	_funcMaping["cgi_pass"] = &ConfigParser::parseCgiPass;
+}
 
-	initServMapping(servMap, serv);
+void	ConfigParser::initServPtrMapping(std::map<std::string, uintptr_t> &servMapping, const t_serverData &serv)
+{
+	servMapping["listen"] = serialize(&serv.listen);
+	servMapping["server_name"] = serialize(&serv.name);
+	servMapping["root"] = serialize(&serv.root);
+	servMapping["index"] = serialize(&serv.index);
+	servMapping["autoindex"] = serialize(&serv.autoIdx);
+	servMapping["client_max_body_size"] = serialize(&serv.cliMax);
+	servMapping["error_page"] = serialize(&serv.errPage);
+	servMapping["location"] = serialize(&serv.location);
+}
+
+void	ConfigParser::initLocPtrMapping(std::map<std::string, uintptr_t> &locMapping, const t_locationData &loc)
+{
+	locMapping["listen"] = serialize(&loc.listen);
+	locMapping["root"] = serialize(&loc.root);
+	locMapping["index"] = serialize(&loc.index);
+	locMapping["autoindex"] = serialize(&loc.autoIdx);
+	locMapping["client_max_body_size"] = serialize(&loc.cliMax);
+	locMapping["error_page"] = serialize(&loc.errPage);
+	locMapping["limit_except"] = serialize(&loc.limExcept);
+	locMapping["cgi_pass"] = serialize(&loc.cgiPass);
+}
+
+void	ConfigParser::readConfig(const char *src)
+{
+	std::ifstream	ifs(src);
+	std::string		line, col;
+	std::stack<int>	braces;
+
 	while (std::getline(ifs, line))
 	{
 		trim(line);
 		if (!(line.empty() || line[0] == '#'))
 		{
+			if (line == "}")
+			{
+				if (braces.empty())
+					throw ConfigParser::InvalidConfigException();
+				braces.pop();
+				break;
+			}
+
 			std::stringstream	ss(line);
 			ss >> col >> std::ws;
-			if (col == "location")
+			if (col == "server")
 			{
-				if (ss >> col >> std::ws)
+				if (ss >> col)
 				{
-					if (ss.eof())
-					{
-						while (std::getline(ifs, line))
-						{
-							trim(line);
-							if (!(line.empty() || line[0] == '#'))
-							{
-								if (line != "{")
-									throw ConfigParser::InvalidConfigException();
-								break;
-							}
-						}
-					}
-					else if (ss.str().substr(ss.tellg()) != "{")
+					if (!(ss.eof() && col == "{"))
+						throw ConfigParser::InvalidConfigException();
+				}
+				else if (std::getline(ifs, line))
+				{
+					if (trim(line) != "{")
 						throw ConfigParser::InvalidConfigException();
 				}
 				else
+				{
 					throw ConfigParser::InvalidConfigException();
+				}
 
-				serv.location.push_back(locationData());
-				serv.location.back().uri = col;
-				parseLocation(ifs, serv.location.back());
+				_server.push_back(serverData());
+				parseServer(ifs, _server.back());
+				fillDefaultServer(_server.back());
 			}
-			else if (servMap.find(col) != servMap.end())
-			{
-				(this->*(_func[col]))(
-					line.substr(ss.tellg()), servMap[col]
-				);
-			}
-			else if (col == "}" && ss.eof())
-				return;
 			else
 				throw ConfigParser::InvalidConfigException();
+		}
+	}
+	if (!braces.empty())
+		throw ConfigParser::InvalidConfigException();
+}
+
+void	ConfigParser::parseServer(std::ifstream &ifs, t_serverData &serv)
+{
+	std::stringstream	ss;
+	std::string			line, col, uri;
+	std::map<std::string, uintptr_t>	servMapping;
+
+	initServPtrMapping(servMapping, serv);
+
+	while (std::getline(ifs, line))
+	{
+		trim(line);
+		if (!(line.empty() || line[0] == '#'))
+		{
+			if (line == "}")
+				break;
+
+			ss.clear();
+			ss.str(line);
+			ss >> col >> std::ws;
+
+			if (col == "location")
+			{
+				if (ss >> uri >> col)
+				{
+					if (!(ss.eof() && col == "{"))
+						throw ConfigParser::InvalidConfigException();
+				}
+				else if (std::getline(ifs, line))
+				{
+					if (trim(line) != "{")
+						throw ConfigParser::InvalidConfigException();
+				}
+				else
+				{
+					throw ConfigParser::InvalidConfigException();
+				}
+
+				serv.location.push_back(locationData());
+				serv.location.back().uri = uri;
+				parseLocation(ifs, serv.location.back());
+			}
+			else if (servMapping.find(col) != servMapping.end())
+			{
+				(this->*(_funcMaping[col]))(
+					ss.str().substr(ss.tellg()), servMapping[col]
+				);
+			}
+			else
+			{
+				throw ConfigParser::InvalidConfigException();
+			}
 		}
 	}
 }
 
 void	ConfigParser::parseLocation(std::ifstream &ifs, t_locationData &loc)
 {
-	std::map<std::string, uintptr_t>	locMap;
-	std::string	line, col;
+	std::stringstream	ss;
+	std::string			line, col;
+	std::map<std::string, uintptr_t>	locMapping;
 
-	initLocMapping(locMap, loc);
+	initLocPtrMapping(locMapping, loc);
+
 	while (std::getline(ifs, line))
 	{
 		trim(line);
 		if (!(line.empty() || line[0] == '#'))
 		{
-			std::stringstream	ss(line);
+			if (line == "}")
+				break;
+
+			ss.clear();
+			ss.str(line);
 			ss >> col >> std::ws;
-			if (locMap.find(col) != locMap.end())
-				(this->*(_func[col]))(
-					line.substr(ss.tellg()), locMap[col]
+
+			if (locMapping.find(col) != locMapping.end())
+				(this->*(_funcMaping[col]))(
+					ss.str().substr(ss.tellg()), locMapping[col]
 				);
-			else if (col == "}" && ss.eof())
-				return;
 			else
 				throw ConfigParser::InvalidConfigException();
 		}
@@ -337,29 +336,13 @@ void	ConfigParser::parseAutoIndex(const std::string &s, uintptr_t p)
 void	ConfigParser::parseCliMaxBodySize(const std::string &s, uintptr_t p)
 {
 	std::istringstream	iss(parseHelper(s));
-	std::map<char, unsigned long>	bytesMap;
-	int		size;
-	char	multiplicand = '0';
+	std::string			col;
 
-	bytesMap['k'] = 1000;
-	bytesMap['m'] = 1000000;
-	bytesMap['g'] = 1000000000;
-	if (iss >> size)
+	iss >> col;
+	if (iss.eof())
 	{
-		iss >> multiplicand >> std::ws;
-		if (iss.eof())
-		{
-			try
-			{
-				*deserialize<unsigned long>(p) =
-					size * ((multiplicand = tolower(multiplicand)) != '0' ?
-						bytesMap.at(multiplicand) : 1);
-				return;
-			}
-			catch (...)
-			{
-			}
-		}
+		*deserialize<std::string>(p) = col;
+		return ;
 	}
 	throw ConfigParser::InvalidConfigException();
 }
@@ -390,8 +373,10 @@ void	ConfigParser::parseLimitExcept(const std::string &s, uintptr_t p)
 	std::string				col;
 
 	allow.insert("GET");
+	allow.insert("HEAD");
 	allow.insert("POST");
 	allow.insert("DELETE");
+
 	while (iss >> col)
 	{
 		if (std::find(allow.begin(), allow.end(), col) != allow.end())
@@ -404,14 +389,13 @@ void	ConfigParser::parseLimitExcept(const std::string &s, uintptr_t p)
 
 void	ConfigParser::parseCgiPass(const std::string &s, uintptr_t p)
 {
-	const std::string		res = parseHelper(s);
-	std::set<std::string>	allow;
+	std::istringstream	iss(parseHelper(s));
+	std::string			col;
 
-	allow.insert("php-cgi");
-	// allow.insert("php-cgi");
-	if (std::find(allow.begin(), allow.end(), res) != allow.end())
+	iss >> col;
+	if (iss.eof())
 	{
-		*deserialize<std::string>(p) = res;
+		*deserialize<std::string>(p) = col;
 		return ;
 	}
 	throw ConfigParser::InvalidConfigException();
@@ -434,6 +418,11 @@ const std::string	ConfigParser::parseHelper(const std::string &src)
 		}
 	}
 	throw ConfigParser::InvalidConfigException();
+}
+
+bool	ConfigParser::compareByUri(const t_locationData &a, const t_locationData &b)
+{
+	return	a.uri > b.uri;
 }
 
 void	ConfigParser::printAll()
@@ -491,9 +480,4 @@ const std::vector<t_serverData>	&ConfigParser::getServer() const
 const char	*ConfigParser::InvalidConfigException::what(void) const throw()
 {
 	return ("Invalid configuration file syntax.");
-}
-
-bool	compareByUri(const t_locationData &a, const t_locationData &b)
-{
-	return	a.uri > b.uri;
 }

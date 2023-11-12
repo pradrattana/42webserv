@@ -41,7 +41,7 @@ typedef struct locationData {
     std::string					root;
     std::vector<std::string>	index;
     std::string					autoIdx;
-    std::string 				cliMax;
+    unsigned long 				cliMax;
     std::vector<t_errorPageData>	errPage;
 
     std::set<std::string>	limExcept;
@@ -73,14 +73,12 @@ typedef struct locationData {
 
 typedef struct serverData {
     std::vector<std::string>	name;
-
     std::vector<t_listenData>	listen;
     std::string					root;
     std::vector<std::string>	index;
     std::string					autoIdx;
-    std::string					cliMax;
+    unsigned long				cliMax;
     std::vector<t_errorPageData>	errPage;
-
     std::vector<t_locationData>	location;
 
     inline bool operator==(const serverData& rhs) const {
@@ -93,21 +91,16 @@ typedef struct serverData {
             && errPage == rhs.errPage
             && location == rhs.location;
     }
-    inline bool operator<(const serverData& rhs) const {
-        if (name == rhs.name) {
+    inline bool operator<(const serverData& rhs) const
+    {
+        if (name == rhs.name)
+        {
+            // return listen < rhs.listen;
             if (root == rhs.root)
                 return listen < rhs.listen;
             return root < rhs.root;
         }
         return name < rhs.name;
-        // return name < rhs.name
-        //     && listen < rhs.listen
-        //     && root < rhs.root
-        //     && index < rhs.index
-        //     && autoIdx < rhs.autoIdx
-        //     && cliMax < rhs.cliMax 
-        //     && errPage < rhs.errPage
-        //     && location < rhs.location;
     }
 }	t_serverData;
 
