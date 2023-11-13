@@ -23,19 +23,10 @@
 class Response {
 public:
 	Response();
+	Response(const t_serverData &, int);
 	Response(const Response &);
-	Response(const std::set<t_serverData> &, int);
-	Response(const std::set<t_serverData> &, const char *, size_t);
-	Response(const std::set<t_serverData> &, const std::string &);
 	~Response();
 	Response &operator= (const Response &);
-
-	const std::string	getStatusLine() const;
-	const std::map<std::string, std::string>	&getHeaders() const;
-	const std::string	getHeadersText() const;
-	const std::string	&getMessageBody() const;
-	const std::string	&getResponse() const;
-	const RequestParser	&getRequest() const;
 
 	char	**toEnv(char **&);
 
@@ -45,7 +36,6 @@ public:
 	void	setHeader(const std::string &, const std::string &);
 	void	setCode(const int);
 
-	void	setConnection();
 	void	setDate();
 	void	setContentLength();
 	void	setLocation();
@@ -60,6 +50,13 @@ public:
 
 	bool	setFullPath();
 	void	setErrorPath();
+
+	const std::string	getStatusLine() const;
+	const std::map<std::string, std::string>	&getHeaders() const;
+	const std::string	getHeadersText() const;
+	const std::string	&getMessageBody() const;
+	const std::string	&getResponse() const;
+	const RequestParser	&getRequest() const;
 
 	void	printFileSize(std::ostringstream &, const std::string &);
 	void	printDateModified(std::ostringstream &, const std::string &);
@@ -83,7 +80,7 @@ private:
 	std::map<int, std::string>	_statMaping;
 
 	void	initStatusMapping();
-	void	setRequestLocation(const std::set<t_serverData> &);
+	void	setRequestLocation(const t_serverData &);
 };
 
 #endif

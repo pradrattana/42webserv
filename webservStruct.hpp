@@ -9,11 +9,11 @@ typedef struct listenData {
     std::string	addr;
     int			port;
 
-    inline bool operator==(const listenData& rhs) const {
+    inline bool operator==(const listenData &rhs) const {
         return addr == rhs.addr
             && port == rhs.port;
     }
-    inline bool operator<(const listenData& rhs) const {
+    inline bool operator<(const listenData &rhs) const {
         if (port == rhs.port)
             return addr < rhs.addr;
         return port < rhs.port;
@@ -24,28 +24,32 @@ typedef struct errorPageData {
     std::vector<int>	code;
     std::string			uri;
 
-    inline bool operator==(const errorPageData& rhs) const {
+    inline bool operator==(const errorPageData &rhs) const {
         return code == rhs.code
             && uri == rhs.uri;
     }
-    inline bool operator<(const errorPageData& rhs) const {
+    inline bool operator<(const errorPageData &rhs) const {
         return code < rhs.code
             && uri < rhs.uri;
     }
 }	t_errorPageData;
 
 typedef struct locationData {
-    std::string					uri;
-
+    std::string				uri;
     std::vector<t_listenData>	listen;
     std::string					root;
     std::vector<std::string>	index;
     std::string					autoIdx;
     unsigned long 				cliMax;
     std::vector<t_errorPageData>	errPage;
-
     std::set<std::string>	limExcept;
-    std::string					cgiPass;
+    std::string				cgiPass;
+    bool                    isRootOvr; // is root overridden
+
+    locationData()
+    {
+        isRootOvr = true;
+    }
 
     inline bool operator==(const locationData& rhs) const {
         return uri == rhs.uri
@@ -81,7 +85,7 @@ typedef struct serverData {
     std::vector<t_errorPageData>	errPage;
     std::vector<t_locationData>	location;
 
-    inline bool operator==(const serverData& rhs) const {
+    /*inline bool operator==(const serverData& rhs) const {
         return name == rhs.name
             && listen == rhs.listen
             && root == rhs.root
@@ -90,15 +94,15 @@ typedef struct serverData {
             && cliMax == rhs.cliMax
             && errPage == rhs.errPage
             && location == rhs.location;
-    }
+    }*/
     inline bool operator<(const serverData& rhs) const
     {
         if (name == rhs.name)
         {
-            // return listen < rhs.listen;
-            if (root == rhs.root)
-                return listen < rhs.listen;
-            return root < rhs.root;
+            return listen < rhs.listen;
+            // if (root == rhs.root)
+            //     return listen < rhs.listen;
+            // return root < rhs.root;
         }
         return name < rhs.name;
     }

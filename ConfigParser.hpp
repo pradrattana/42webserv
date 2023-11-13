@@ -32,6 +32,8 @@ private:
 	std::map<
 		std::string, void (ConfigParser::*)(const std::string &, uintptr_t)
 	>							_func;
+	std::set<int>	_port;
+	bool	_isListen;
 
 	void	initFuncMapping();
 	void	initServMapping(std::map<std::string, uintptr_t> &, const t_serverData &);

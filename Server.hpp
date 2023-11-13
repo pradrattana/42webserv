@@ -24,8 +24,6 @@
 #include "Socket.hpp"
 #include "webservStruct.hpp"
 
-#define MAXLINE 3000
-
 class Server
 {
 public:
@@ -39,17 +37,17 @@ public:
 	void	initAllFdset();
 	void	waiting();
 	int		addNewConnection(Socket *, int &);
-	int		checkClient(std::pair<const int, std::set<t_serverData> > &, int &);
+	int		checkClient(std::pair<const int, t_serverData> &, int &);
 
 	static bool _isRunning;
 
 private:
-	std::vector<Socket *> _allSock;
-	fd_set _allSet;
-	fd_set _readSet;
-	int 	_maxFd;
-	std::map<int, std::set<t_serverData> > _portToServ;
-	std::map<int, std::set<t_serverData> > _cli;
+	std::vector<Socket *>	_allSock;
+	fd_set	_allSet;
+	fd_set	_readSet;
+	int		_maxFd;
+	std::map<int, t_serverData>	_portToServ;
+	std::map<int, t_serverData>	_cli;
 };
 
 #endif

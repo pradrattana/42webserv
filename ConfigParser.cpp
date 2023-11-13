@@ -109,7 +109,6 @@ void	ConfigParser::initServMapping(std::map<std::string, uintptr_t> &servMap, co
 
 void	ConfigParser::initLocMapping(std::map<std::string, uintptr_t> &locMap, const t_locationData &loc)
 {
-	locMap["listen"] = serialize(&loc.listen);
 	locMap["root"] = serialize(&loc.root);
 	locMap["index"] = serialize(&loc.index);
 	locMap["autoindex"] = serialize(&loc.autoIdx);
@@ -125,13 +124,13 @@ void	ConfigParser::fillDefaultServer(t_serverData &s)
 
 	if (s.name.empty())
 		s.name.push_back("");
-	if (s.listen.empty())
-	{
-		t_listenData	lsn = { "*", 80 };
-		s.listen.push_back(lsn);
-		lsn.port = 8000;
-		s.listen.push_back(lsn);
-	}
+	// if (s.listen.empty())
+	// {
+	// 	t_listenData	lsn = { "*", 80 };
+	// 	s.listen.push_back(lsn);
+	// 	lsn.port = 8000;
+	// 	s.listen.push_back(lsn);
+	// }
 	if (s.root.empty())
 		s.root = "html";
 	if (s.index.empty())
@@ -162,7 +161,10 @@ void	ConfigParser::fillDefaultLocation(t_locationData &l, const t_serverData &s)
 	if (l.listen.empty())
 		l.listen = s.listen;
 	if (l.root.empty())
+	{
+		l.isRootOvr = false;
 		l.root = s.root;
+	}
 	if (l.index.empty())
 		l.index = s.index;
 	if (l.autoIdx.empty())
@@ -172,7 +174,7 @@ void	ConfigParser::fillDefaultLocation(t_locationData &l, const t_serverData &s)
 	if (l.errPage.empty())
 		l.errPage = s.errPage;
 	l.limExcept.insert("GET");
-	l.limExcept.insert("HEAD");
+	// l.limExcept.insert("HEAD");
 	if (l.cgiPass.empty())
 		l.cgiPass = "php-cgi";
 }
@@ -183,6 +185,7 @@ void	ConfigParser::parseServer(std::ifstream &ifs, t_serverData &serv)
 	std::string	line, col;
 
 	initServMapping(servMap, serv);
+	_isListen = false;
 	while (std::getline(ifs, line))
 	{
 		trim(line);
@@ -224,11 +227,13 @@ void	ConfigParser::parseServer(std::ifstream &ifs, t_serverData &serv)
 				);
 			}
 			else if (col == "}" && ss.eof())
-				return;
+				break;
 			else
 				throw ConfigParser::InvalidConfigException();
 		}
 	}
+	if (!_isListen)
+		throw ConfigParser::InvalidConfigException();
 }
 
 void	ConfigParser::parseLocation(std::ifstream &ifs, t_locationData &loc)
@@ -274,10 +279,15 @@ void	ConfigParser::parseListen(const std::string &s, uintptr_t p)
 		{
 			iss.seekg(0);
 		}
-		if (iss >> lsn.port)
+		if ((iss >> lsn.port >> std::ws).eof())
 		{
-			deserialize<std::vector<t_listenData> >(p)->push_back(lsn);
-			return ;
+			if (_port.find(lsn.port) == _port.end())
+			{
+				_isListen = true;
+				_port.insert(lsn.port);
+				deserialize<std::vector<t_listenData> >(p)->push_back(lsn);
+				return ;
+			}
 		}
 	}
 	throw ConfigParser::InvalidConfigException();
@@ -346,8 +356,7 @@ void	ConfigParser::parseCliMaxBodySize(const std::string &s, uintptr_t p)
 	bytesMap['g'] = 1000000000;
 	if (iss >> size)
 	{
-		iss >> multiplicand >> std::ws;
-		if (iss.eof())
+		if ((iss >> multiplicand >> std::ws).eof())
 		{
 			try
 			{

@@ -2,6 +2,15 @@
 
 bool Server::_isRunning = true;
 
+static void sigHandler(int signo)
+{
+	if (signo == SIGINT || signo == SIGQUIT)
+	{
+		std::cout << "\b\b \b\b";
+		Server::_isRunning = false;
+	}
+}
+
 Server::Server(void)
 {
 }
@@ -24,12 +33,15 @@ Server::~Server(void)
 
 Server &Server::operator=(const Server &src)
 {
-	_allSock = src._allSock;
-	_allSet = src._allSet;
-	_readSet = src._readSet;
-	_maxFd = src._maxFd;
-	_portToServ = src._portToServ;
-	_cli = src._cli;
+	if (this != &src)
+	{
+		_allSock = src._allSock;
+		_allSet = src._allSet;
+		_readSet = src._readSet;
+		_maxFd = src._maxFd;
+		_portToServ = src._portToServ;
+		_cli = src._cli;
+	}
 	return *this;
 }
 
@@ -46,7 +58,7 @@ void Server::initAllSocket(const std::vector<t_serverData> &allServ)
 			for (std::vector<t_listenData>::const_iterator it3 = it2->listen.begin();
 				 it3 != it2->listen.end(); it3++)
 			{
-				_portToServ[it3->port].insert(*it);
+				_portToServ[it3->port] = *it;
 				if (std::find(tmpPort.begin(), tmpPort.end(), it3->port) == tmpPort.end())
 				{
 					tmpPort.push_back(it3->port);
@@ -72,15 +84,6 @@ void Server::initAllFdset()
 	}
 }
 
-static void sigHandler(int signo)
-{
-	if (signo == SIGINT || signo == SIGQUIT)
-	{
-		std::cout << "\b\b \b\b";
-		Server::_isRunning = false;
-	}
-}
-
 void Server::waiting()
 {
 	int nready;
@@ -102,13 +105,15 @@ void Server::waiting()
 						break;
 				}
 			}
-			for (std::map<int, std::set<t_serverData> >::iterator it = _cli.begin();
+			for (std::map<int, t_serverData>::iterator it = _cli.begin();
 				 it != _cli.end();)
 			{
-				std::map<int, std::set<t_serverData> >::iterator itNext = ++it;
+				std::map<int, t_serverData>::iterator itNext = ++it;
 				it--;
-				if (checkClient(*it, nready))
+				if (checkClient(*it, nready)) {
+					std::cerr << "client: " << it->first << '\n';
 					break;
+				}
 				it = itNext;
 			}
 		}
@@ -153,7 +158,7 @@ int Server::addNewConnection(Socket *s, int &nready)
 	return (--nready <= 0);
 }
 
-int Server::checkClient(std::pair<const int, std::set<t_serverData> > &fdToServ, int &nready)
+int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nready)
 {
 	int 	sockfd;
 

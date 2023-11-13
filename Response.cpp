@@ -10,7 +10,7 @@ Response::Response(const Response &src)
 	*this = src;
 }
 
-Response::Response(const std::set<t_serverData> &serv, int sockfd): _cgi(this)
+Response::Response(const t_serverData &serv, int sockfd): _cgi(this)
 {
 	_request.readRequest(sockfd);
 	if (_request.getReadLen() == 0)
@@ -89,7 +89,7 @@ void Response::initStatusMapping()
 	_statMaping[505] = "HTTP Version not supported";
 }
 
-void Response::setRequestLocation(const std::set<t_serverData> &serv)
+void Response::setRequestLocation(const t_serverData &serv)
 {
 	t_listenData lsn;
 	std::string::size_type pos;
@@ -105,25 +105,21 @@ void Response::setRequestLocation(const std::set<t_serverData> &serv)
 		// lsn.port = 80;
 	}
 
-	for (std::set<t_serverData>::const_iterator it = serv.begin();
-		 it != serv.end(); it++)
+	if (isIPv4(lsn.addr) || std::find(serv.name.begin(), serv.name.end(), lsn.addr) != serv.name.end())
 	{
-		if (isIPv4(lsn.addr) || std::find(it->name.begin(), it->name.end(), lsn.addr) != it->name.end())
+		for (std::vector<t_locationData>::const_iterator it = serv.location.begin();
+				it != serv.location.end(); it++)
 		{
-			for (std::vector<t_locationData>::const_iterator it2 = it->location.begin();
-				 it2 != it->location.end(); it2++)
+			for (std::vector<t_listenData>::const_iterator it2 = it->listen.begin();
+					it2 != it->listen.end(); it2++)
 			{
-				for (std::vector<t_listenData>::const_iterator it3 = it2->listen.begin();
-					 it3 != it2->listen.end(); it3++)
+				// std::cout << it->location
+				if ((!isIPv4(lsn.addr) || it2->addr == lsn.addr) && it2->port == lsn.port)
 				{
-					// std::cout << it2->location
-					if ((!isIPv4(lsn.addr) || it3->addr == lsn.addr) && it3->port == lsn.port)
+					if (_request.getUri().find(it->uri) == 0)
 					{
-						if (_request.getUri().find(it2->uri) == 0)
-						{
-							_reqLoc = *it2;
-							return;
-						}
+						_reqLoc = *it;
+						return;
 					}
 				}
 			}
@@ -194,7 +190,13 @@ bool Response::setFullPath()
 	}
 	else
 	{
-		oss << _reqLoc.root << _request.getUri();
+		oss << _reqLoc.root;
+		// if location doesn't overridden root
+		if (!_reqLoc.isRootOvr) 
+			oss << _request.getUri();
+		else
+			oss << _request.getUri().substr(_request.getUri().find(_reqLoc.uri) + _reqLoc.uri.length());
+		// std::cout << "full: " << oss.str() << '\n';
 		if (stat(oss.str().c_str(), &statBuf) == 0)
 		{
 			_fullPath = oss.str();
@@ -252,7 +254,7 @@ void Response::setLocation()
 		<< _request.getUri()
 		<< '/';
 
-	std::cout << "oos = " << oss.str();
+	// std::cout << "location: " << oss.str() << "\n";
 	_headers["Location"] = oss.str();
 }
 
