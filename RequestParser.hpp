@@ -38,25 +38,27 @@ public:
 
 	int		readRequest(int);
 	size_t	readToBuf(int, char *&);
+	size_t	readToFile(int, int);
 	char	**toEnv(const t_locationData &, char **&);
 
 	bool	parseRequestLine(const std::string &);
 	bool	parseHeaders(std::istringstream &);
 	void	parseMessageBody(int, int, char *&);
+	void	parseMessageBody(int, int);
 
 	const std::string	&getMethod() const;
 	const std::string	&getUri() const;
 	const std::string	&getQuery() const;
 	const std::string	&getVersion() const;
 	const std::map<std::string, std::string>	&getHeaders() const;
-	const char		*getMessageBody() const;
+	// const char		*getMessageBody() const;
 	const size_t	&getMessageBodyLen() const;
 	// const size_t	&getReadLen() const;
 
 private:
 	t_reqLine	_reqLine;
 	std::map<std::string, std::string>	_headers;
-	char		*_msgBody;
+	// char		*_msgBody;
 	size_t		_msgLen;
 	size_t		_readLen;
 };

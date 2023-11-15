@@ -1,17 +1,16 @@
 #include "RequestParser.hpp"
 
-RequestParser::RequestParser(void): _msgBody(NULL), _msgLen(0), _readLen(0)
+RequestParser::RequestParser(void): _msgLen(0), _readLen(0)
 {
 }
 
-RequestParser::RequestParser(const RequestParser &src): _msgBody(NULL), _msgLen(0), _readLen(0)
+RequestParser::RequestParser(const RequestParser &src): _msgLen(0), _readLen(0)
 {
 	*this = src;
 }
 
 RequestParser::~RequestParser(void)
 {
-	delete[] _msgBody;
 }
 
 RequestParser &RequestParser::operator=(const RequestParser &src)
@@ -20,53 +19,23 @@ RequestParser &RequestParser::operator=(const RequestParser &src)
 	{
 		_reqLine = src._reqLine;
 		_headers = src._headers;
-		_msgBody = strdup(src._msgBody);
 		_msgLen = src._msgLen;
 		_readLen = src._readLen;
 	}
 	return *this;
 }
 
-size_t	RequestParser::readToBuf(int sockfd, char *&buf)
-{
-	size_t	bufsize = _readLen;
-	char	recvbuf[MAXLINE] = {0};
-	int		tmpReadLen = 0;
-
-	do
-	{
-		tmpReadLen = recv(sockfd, recvbuf, MAXLINE, 0);
-		if (tmpReadLen == 0)
-		{
-			return bufsize > _readLen ? bufsize : 0;
-		}
-		else if (tmpReadLen < 0)
-		{
-			perror("recv");
-			return 0;
-		}
-		buf = (char *)realloc(buf, bufsize + tmpReadLen + 1);
-		memmove(buf + bufsize, recvbuf, tmpReadLen);
-		buf[bufsize + tmpReadLen] = 0;
-		bufsize += tmpReadLen;
-	} while (tmpReadLen >= MAXLINE);
-	return bufsize;
-}
-
 int	RequestParser::readRequest(int sockfd)
 {
 	char	*buf = NULL;
-	size_t	tmpReadLen = 0;
+	size_t	tmpReadLen;
 
-	do
+	if ((tmpReadLen = readToBuf(sockfd, buf)) == 0)
 	{
-		if ((tmpReadLen = readToBuf(sockfd, buf)) == 0)
-		{
-			free(buf);
-			return 0;
-		}
-		_readLen += tmpReadLen;
-	} while (strstr(buf, "\r\n\r\n") == NULL);
+		free(buf);
+		return 0;
+	}
+	_readLen += tmpReadLen;
 
 	std::istringstream	iss(buf);
 	std::string			line;
@@ -78,29 +47,122 @@ int	RequestParser::readRequest(int sockfd)
 	if (!parseHeaders(iss))
 		return 400;
 
+	FILE	*fp = fopen("myfile.bin", "wb");
+	if (fp == NULL)
+	{
+		fclose(fp);
+		free(buf);
+		return 500;
+	}
 	try
 	{
-		parseMessageBody(iss.tellg(), sockfd, buf);
-		if (_msgLen > 0)
-		{
-			FILE	*fp = fopen("myfile.bin", "wb");
-			if (fp == NULL)
-			{
-				free(buf);
-				return 500;
-			}
-			fwrite(_msgBody, sizeof(_msgBody[0]), _msgLen, fp);
-			fclose(fp);
-		}
+		parseMessageBody(sockfd, fileno(fp));
 	}
 	catch (int)
 	{
+		fclose(fp);
 		free(buf);
 		return 0;
 	}
 
+	fclose(fp);
 	free(buf);
 	return 200;
+}
+
+// int	RequestParser::readRequest(int sockfd)
+// {
+// 	char	*buf = NULL;
+// 	size_t	tmpReadLen = 0;
+
+// 	do
+// 	{
+// 		if ((tmpReadLen = readToBuf(sockfd, buf)) == 0)
+// 		{
+// 			free(buf);
+// 			return 0;
+// 		}
+// 		_readLen += tmpReadLen;
+// 	} while (strstr(buf, "\r\n\r\n") == NULL);
+
+// 	std::istringstream	iss(buf);
+// 	std::string			line;
+
+// 	if (!std::getline(iss, line))
+// 		return 400;
+// 	if (!parseRequestLine(line))
+// 		return 400;
+// 	if (!parseHeaders(iss))
+// 		return 400;
+
+// 	try
+// 	{
+// 		parseMessageBody(iss.tellg(), sockfd, buf);
+// 		if (_msgLen > 0)
+// 		{
+// 			FILE	*fp = fopen("myfile.bin", "wb");
+// 			if (fp == NULL)
+// 			{
+// 				free(buf);
+// 				return 500;
+// 			}
+// 			fwrite(_msgBody, sizeof(_msgBody[0]), _msgLen, fp);
+// 			fclose(fp);
+// 		}
+// 	}
+// 	catch (int)
+// 	{
+// 		free(buf);
+// 		return 0;
+// 	}
+
+// 	free(buf);
+// 	return 200;
+// }
+
+size_t	RequestParser::readToBuf(int sockfd, char *&buf)
+{
+	char	recvbuf;
+	size_t	bufsize = 0;
+	int		tmpReadLen = 0;
+
+	do
+	{
+		tmpReadLen = recv(sockfd, &recvbuf, 1, 0);
+		if (tmpReadLen == 0)
+		{
+			return 0;
+		}
+		else if (tmpReadLen < 0)
+		{
+			perror("recv");
+			return 0;
+		}
+		buf = (char *)realloc(buf, bufsize + tmpReadLen + 1);
+		memmove(buf + bufsize, &recvbuf, tmpReadLen);
+		buf[bufsize + tmpReadLen] = 0;
+		bufsize += tmpReadLen;
+	} while (strstr(buf, "\r\n\r\n") == NULL);
+	return bufsize;
+}
+
+size_t	RequestParser::readToFile(int sockfd, int filefd)
+{
+	char	recvbuf[MAXLINE] = {0};
+	int		tmpReadLen = 0;
+
+	tmpReadLen = recv(sockfd, recvbuf, MAXLINE, 0);
+	if (tmpReadLen == 0)
+	{
+		return 0;
+	}
+	else if (tmpReadLen < 0)
+	{
+		perror("recv");
+		return 0;
+	}
+	write(filefd, recvbuf, tmpReadLen);
+	return tmpReadLen;
 }
 
 bool	RequestParser::parseRequestLine(const std::string &line)
@@ -176,27 +238,50 @@ bool	RequestParser::parseHeaders(std::istringstream &src)
 	return false;
 }
 
-void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf)
+void	RequestParser::parseMessageBody(int sockfd, int filefd)
 {
+	size_t	bufsize = 0;
 	size_t	tmpReadLen = 0;
 
 	if (getMethod() == "POST")
 	{
 		_msgLen = atoi(_headers.at("Content-Length").c_str());
-		while (_readLen - i < _msgLen)
+		while (bufsize < _msgLen)
 		{
-			tmpReadLen = readToBuf(sockfd, buf);
+			tmpReadLen = readToFile(sockfd, filefd);
 			if (tmpReadLen == 0)
 			{
 				throw 0;
 			}
-			_readLen += tmpReadLen;
+			bufsize += tmpReadLen;
 		}
+		std::cout << "msglen = " << _msgLen << '\n';
+		std::cout << "bufsize = " << bufsize << '\n';
 	}
-	_msgBody = new char[_msgLen + 1];
-	memmove(_msgBody, buf + i, _msgLen);
-	_msgBody[_msgLen] = 0;
+	_readLen += bufsize;
 }
+
+// void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf)
+// {
+// 	size_t	tmpReadLen = 0;
+
+// 	if (getMethod() == "POST")
+// 	{
+// 		_msgLen = atoi(_headers.at("Content-Length").c_str());
+// 		while (_readLen - i < _msgLen)
+// 		{
+// 			tmpReadLen = readToBuf(sockfd, buf);
+// 			if (tmpReadLen == 0)
+// 			{
+// 				throw 0;
+// 			}
+// 			_readLen += tmpReadLen;
+// 		}
+// 	}
+// 	_msgBody = new char[_msgLen + 1];
+// 	memmove(_msgBody, buf + i, _msgLen);
+// 	_msgBody[_msgLen] = 0;
+// }
 
 char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env)
 {
@@ -278,10 +363,10 @@ const std::map<std::string, std::string>	&RequestParser::getHeaders() const
 	return _headers;
 }
 
-const char	*RequestParser::getMessageBody() const
-{
-	return _msgBody;
-}
+// const char	*RequestParser::getMessageBody() const
+// {
+// 	return _msgBody;
+// }
 
 const size_t	&RequestParser::getMessageBodyLen() const
 {
