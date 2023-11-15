@@ -1,6 +1,6 @@
 #include "Response.hpp"
 
-Response::Response(void): _cgi(this)
+Response::Response(void): _cgi(this), _code(0)
 {
 	initStatusMapping();
 }
@@ -8,29 +8,6 @@ Response::Response(void): _cgi(this)
 Response::Response(const Response &src)
 {
 	*this = src;
-}
-
-Response::Response(const t_serverData &serv, int sockfd): _cgi(this)
-{
-	_request.readRequest(sockfd);
-	if (_request.getReadLen() == 0)
-		return ;
-
-	initStatusMapping();
-	try
-	{
-		setRequestLocation(serv);
-		methodHandler();
-	}
-	catch (const int &e)
-	{
-		_code = e;
-	}
-	catch (...)
-	{
-		return;
-	}
-	setResponse();
 }
 
 Response::~Response(void)
@@ -51,6 +28,30 @@ Response &Response::operator=(const Response &src)
 		_statMaping = src._statMaping;
 	}
 	return *this;
+}
+
+bool	Response::processing(const t_serverData &serv, int sockfd)
+{
+	int	ret = _request.readRequest(sockfd);
+	if (ret == 0)
+		return false;
+
+	initStatusMapping();
+	try
+	{
+		setRequestLocation(serv);
+		methodHandler();
+	}
+	catch (int e)
+	{
+		_code = e;
+	}
+	catch (...)
+	{
+		return false;
+	}
+	setResponse();
+	return true;
 }
 
 void Response::initStatusMapping()
@@ -80,6 +81,7 @@ void Response::initStatusMapping()
 	_statMaping[405] = "Method Not Allowed";
 	_statMaping[406] = "Not Acceptable";
 	_statMaping[413] = "Content Too Large";
+	_statMaping[415] = "Unsupported Media Type";
 
 	_statMaping[500] = "Internal Server Error";
 	_statMaping[501] = "Not Implemented";
@@ -94,7 +96,14 @@ void Response::setRequestLocation(const t_serverData &serv)
 	t_listenData lsn;
 	std::string::size_type pos;
 
-	lsn.addr = _request.getHeaders().at("Host");
+	try
+	{
+		lsn.addr = _request.getHeaders().at("Host");
+	}
+	catch (const std::exception &e)
+	{
+		throw 400;
+	}
 	if ((pos = lsn.addr.find(':')) != std::string::npos)
 	{
 		lsn.port = atoi(lsn.addr.substr(pos + 1).c_str());
@@ -113,11 +122,12 @@ void Response::setRequestLocation(const t_serverData &serv)
 			for (std::vector<t_listenData>::const_iterator it2 = it->listen.begin();
 					it2 != it->listen.end(); it2++)
 			{
-				// std::cout << it->location
 				if ((!isIPv4(lsn.addr) || it2->addr == lsn.addr) && it2->port == lsn.port)
 				{
-					if (_request.getUri().find(it->uri) == 0)
+					if (dropFilename(_request.getUri()).find(it->uri) == 0)
 					{
+						// std::cout << "get uri " << dropFilename(_request.getUri()) << '\n';
+						// std::cout << "reqloc uri " << it->uri << '\n';
 						_reqLoc = *it;
 						return;
 					}
@@ -132,16 +142,24 @@ void Response::setResponse()
 {
 	std::ostringstream oss;
 
-	// std::cout << "CODE " << _code << "\n";
-	if (!(_code == 200 || _code==302))
+	if (_code / 100 == 4 || _code / 100 == 5)
 	{
 		setErrorPath();
 		setMessageBody();
 		setContentType();
+	}
+
+	try
+	{
+		_headers.at("Content-length");
+	}
+	catch (const std::exception &e)
+	{
 		setContentLength();
 	}
+
 	oss << getStatusLine() << getHeadersText() << "\r\n"
-		<< _msgBody;
+		<< _msgBody;;
 	_response = oss.str();
 }
 
@@ -215,16 +233,19 @@ void Response::setErrorPath()
 	std::ostringstream oss;
 	struct stat statBuf;
 
-	for (std::vector<t_errorPageData>::const_iterator it = _reqLoc.errPage.begin();
-		 it != _reqLoc.errPage.end(); it++)
+	if (_code != 400)
 	{
-		if (std::find(it->code.begin(), it->code.end(), _code) != it->code.end())
+		for (std::vector<t_errorPageData>::const_iterator it = _reqLoc.errPage.begin();
+			it != _reqLoc.errPage.end(); it++)
 		{
-			oss << _reqLoc.root << it->uri;
-			if (stat(oss.str().c_str(), &statBuf) == 0)
+			if (std::find(it->code.begin(), it->code.end(), _code) != it->code.end())
 			{
-				_fullPath = oss.str();
-				return;
+				oss << _reqLoc.root << it->uri;
+				if (stat(oss.str().c_str(), &statBuf) == 0)
+				{
+					_fullPath = oss.str();
+					return;
+				}
 			}
 		}
 	}
@@ -250,12 +271,16 @@ void Response::setLocation()
 
 	oss << "http://"
 		<< _request.getHeaders().at("Host")
-		<< (*_request.getUri().begin() == '/' ? "" : "/")
+		// << (*_request.getUri().begin() == '/' ? "" : "/")
 		<< _request.getUri()
 		<< '/';
 
-	// std::cout << "location: " << oss.str() << "\n";
 	_headers["Location"] = oss.str();
+}
+
+void Response::setLocation(const std::string &s)
+{
+	_headers["Location"] = s;
 }
 
 void Response::setContentLength()
@@ -263,14 +288,14 @@ void Response::setContentLength()
 	std::ostringstream oss;
 
 	oss << _msgBody.length();
-	_headers["Content-Length"] = oss.str();
+	_headers["Content-length"] = oss.str();
 }
 
 // https://www.iana.org/assignments/media-types/media-types.xhtml
 void Response::setContentType()
 {
-	std::string::size_type pos = _fullPath.rfind('.') + 1;
 	std::string type = "text/plain";
+	std::string::size_type pos = _fullPath.rfind('.') + 1;
 
 	if (pos != std::string::npos)
 	{
@@ -278,18 +303,17 @@ void Response::setContentType()
 		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 		if (ext == "jpeg" || ext == "jpg")
 			type = "image/jpeg";
-		else if (ext == "png")
-			type = "image/png";
-		else if (ext == "css")
-			type = "text/css";
-		else if (ext == "html")
-			type = "text/html";
+		else if (ext == "svg")
+			type = "image/svg+xml";
+		else if (ext == "png" || ext == "gif" || ext == "bmp")
+			type = "image/" + ext;
+		else if (ext == "css" || ext == "csv" || ext == "javascript" || ext == "html")
+			type = "text/" + ext;
+		else if (ext == "json")
+			type = "application/json";
+		// else
+		// 	throw 415;
 	}
-
-	// if (_request.getHeaders().at("Accept").find("*/*") == std::string::npos) {
-	// 	if (_request.getHeaders().at("Accept").find(type) == std::string::npos)
-	// 		throw 406;
-	// }
 
 	_headers["Content-Type"] = type;
 }
@@ -306,14 +330,16 @@ void Response::methodHandler()
 	{
 
 		std::cout << _request.getMethod() << "\n";
-		for (std::set<std::string> ::iterator it = _reqLoc.limExcept.begin(); it != _reqLoc.limExcept.end(); it++)
-			std::cout << "_reqLoc : " << _reqLoc.limExcept.begin()->c_str() << "\n";
-
 		if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
 					  _request.getMethod()) != _reqLoc.limExcept.end())
+		{
+			if (!_reqLoc.redir.url.empty())
+			{
+				setLocation(_reqLoc.redir.url);
+				throw _reqLoc.redir.code;
+			}
 			(this->*method[_request.getMethod()])();
-		// else if (_request.getMethod() == "POST")
-		// 	(this->*method[_request.getMethod()])();
+		}
 		else
 			throw 405;
 	}
@@ -345,7 +371,7 @@ void Response::methodGet()
 	else if (_fullPath.find(".php") == std::string::npos)
 	{
 		setMessageBody();
-		setContentLength();
+		// setContentLength();
 		setContentType();
 	}
 	else
@@ -385,7 +411,7 @@ const std::string Response::getStatusLine() const
 {
 	std::ostringstream oss;
 
-	oss << _request.getVersion() << " "
+	oss << (_request.getVersion().empty() ? "HTTP/1.1" : _request.getVersion()) << " "
 		<< _code << " "
 		<< _statMaping.at(_code) << "\r\n";
 	return oss.str();
@@ -414,4 +440,15 @@ const std::map<std::string, std::string> &Response::getHeaders() const
 const RequestParser	&Response::getRequest() const
 {
 	return _request;
+}
+
+std::string	dropFilename(const std::string &path)
+{
+	std::string::size_type	lastSlashPos = path.rfind('/');
+	std::string::size_type	lastDotPos = path.rfind('.');
+
+	if (lastDotPos == std::string::npos || lastDotPos < lastSlashPos)
+		return path;
+	else
+		return path.substr(0, lastSlashPos + 1);
 }

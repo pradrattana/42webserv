@@ -23,12 +23,11 @@
 class Response {
 public:
 	Response();
-	Response(const t_serverData &, int);
 	Response(const Response &);
 	~Response();
 	Response &operator= (const Response &);
 
-	char	**toEnv(char **&);
+	bool	processing(const t_serverData &, int);
 
 	void	setResponse();
 	void	setMessageBody();
@@ -36,9 +35,13 @@ public:
 	void	setHeader(const std::string &, const std::string &);
 	void	setCode(const int);
 
+	bool	setFullPath();
+	void	setErrorPath();
+
 	void	setDate();
 	void	setContentLength();
 	void	setLocation();
+	void	setLocation(const std::string &);
 	void	setContentType();
 
 	void	directoryListing();
@@ -48,8 +51,7 @@ public:
 	void	methodPost();
 	void	methodDelete();
 
-	bool	setFullPath();
-	void	setErrorPath();
+	char	**toEnv(char **&);
 
 	const std::string	getStatusLine() const;
 	const std::map<std::string, std::string>	&getHeaders() const;
@@ -67,8 +69,7 @@ public:
 private:
 	CgiHandler		_cgi;
 	RequestParser	_request;
-	t_locationData	_reqLoc; 
-	t_locationData	_errLoc; 
+	t_locationData	_reqLoc;
 
 	std::string		_fullPath;
 	std::string		_response;
@@ -82,5 +83,7 @@ private:
 	void	initStatusMapping();
 	void	setRequestLocation(const t_serverData &);
 };
+
+std::string	dropFilename(const std::string &);
 
 #endif

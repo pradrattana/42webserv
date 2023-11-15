@@ -16,7 +16,7 @@
 # include "helper.hpp"
 # include "webservStruct.hpp"
 
-# define MAXLINE 3000
+# define MAXLINE 10000
 
 class RequestParser {
 private:
@@ -36,12 +36,12 @@ public:
 	~RequestParser();
 	RequestParser &operator=(const RequestParser &);
 
-	void	readRequest(int);
+	int		readRequest(int);
 	size_t	readToBuf(int, char *&);
 	char	**toEnv(const t_locationData &, char **&);
 
-	void	parseRequestLine(const std::string &);
-	void	parseHeaders(std::istringstream &);
+	bool	parseRequestLine(const std::string &);
+	bool	parseHeaders(std::istringstream &);
 	void	parseMessageBody(int, int, char *&);
 
 	const std::string	&getMethod() const;
@@ -51,7 +51,7 @@ public:
 	const std::map<std::string, std::string>	&getHeaders() const;
 	const char		*getMessageBody() const;
 	const size_t	&getMessageBodyLen() const;
-	const size_t	&getReadLen() const;
+	// const size_t	&getReadLen() const;
 
 private:
 	t_reqLine	_reqLine;

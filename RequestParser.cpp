@@ -14,7 +14,7 @@ RequestParser::~RequestParser(void)
 	delete[] _msgBody;
 }
 
-RequestParser &RequestParser::operator= (const RequestParser &src)
+RequestParser &RequestParser::operator=(const RequestParser &src)
 {
 	if (this != &src)
 	{
@@ -53,30 +53,30 @@ size_t	RequestParser::readToBuf(int sockfd, char *&buf)
 	return bufsize;
 }
 
-void	RequestParser::readRequest(int sockfd)
+int	RequestParser::readRequest(int sockfd)
 {
 	char	*buf = NULL;
 	size_t	tmpReadLen = 0;
 
 	do
 	{
-		tmpReadLen = readToBuf(sockfd, buf);
-		if (tmpReadLen == 0)
+		if ((tmpReadLen = readToBuf(sockfd, buf)) == 0)
 		{
-			_readLen = 0;
 			free(buf);
-			return ;
+			return 0;
 		}
 		_readLen += tmpReadLen;
 	} while (strstr(buf, "\r\n\r\n") == NULL);
 
 	std::istringstream	iss(buf);
 	std::string			line;
-	while (std::getline(iss, line))
-		if (!line.empty())
-			break;
-	parseRequestLine(line);
-	parseHeaders(iss);
+
+	if (!std::getline(iss, line))
+		return 400;
+	if (!parseRequestLine(line))
+		return 400;
+	if (!parseHeaders(iss))
+		return 400;
 
 	try
 	{
@@ -86,60 +86,94 @@ void	RequestParser::readRequest(int sockfd)
 			FILE	*fp = fopen("myfile.bin", "wb");
 			if (fp == NULL)
 			{
-				// Error handling.
+				free(buf);
+				return 500;
 			}
 			fwrite(_msgBody, sizeof(_msgBody[0]), _msgLen, fp);
 			fclose(fp);
 		}
-	} catch (int)
+	}
+	catch (int)
 	{
-		_readLen = 0;
+		free(buf);
+		return 0;
 	}
 
 	free(buf);
+	return 200;
 }
 
-void	RequestParser::parseRequestLine(const std::string &line)
+bool	RequestParser::parseRequestLine(const std::string &line)
 {
-	std::istringstream		iss(line);
-	std::string::size_type	queryPos;
+	std::string::size_type	spPos1, spPos2, queryPos;
+	std::set<std::string>	allow;
 
-	if (iss >> _reqLine.method >> _reqLine.uri >> _reqLine.version >> std::ws)
+	if (*(line.end() - 1) != '\r') // if not cr at the end
+		return false;
+
+	allow.insert("GET");
+	allow.insert("HEAD");
+	allow.insert("POST");
+	allow.insert("PUT");
+	allow.insert("DELETE");
+	allow.insert("CONNECT");
+	allow.insert("OPIONS");
+	allow.insert("TRACE");
+	allow.insert("PATCH");
+
+	if ((spPos1 = line.find(' ')) != std::string::npos)
+		_reqLine.method = line.substr(0, spPos1);
+	if (std::find(allow.begin(), allow.end(), _reqLine.method) == allow.end())
+		return false;
+	// std::cout << _reqLine.method << '\n';
+
+	if ((spPos2 = line.find(' ', spPos1 + 1)) != std::string::npos)
+		_reqLine.uri = line.substr(spPos1 + 1, spPos2 - spPos1 - 1);
+	if ((queryPos = _reqLine.uri.find('?')) != std::string::npos)
 	{
-		if ((queryPos = getUri().find('?')) != std::string::npos)
-		{
-			_reqLine.query = _reqLine.uri.substr(queryPos + 1);
-			_reqLine.uri.erase(queryPos);
-		}
-		if (_reqLine.uri[0] != '/')
-			_reqLine.uri.insert(_reqLine.uri.begin(), '/');
+		_reqLine.query = _reqLine.uri.substr(queryPos + 1);
+		_reqLine.uri.erase(queryPos);
+		if (!isURIQueryValid(_reqLine.query))
+			return false;
 	}
-	// throw
+	if (*_reqLine.uri.begin() != '/')
+		return false;
+		// _reqLine.uri.insert(_reqLine.uri.begin(), '/');
+	if (!isURIPathValid(_reqLine.uri))
+		return false;
+	// std::cout << _reqLine.uri << '\n';
+
+	_reqLine.version = line.substr(spPos2 + 1, 8);
+	if (_reqLine.version.find("HTTP/") != 0)
+		return false;
+	if (!isdigit(_reqLine.version[5]) || _reqLine.version[6] != '.' || !isdigit(_reqLine.version[7]))
+		return false;
+	// std::cout << _reqLine.version << '\n';
+	
+	return true;
 }
 
-void	RequestParser::parseHeaders(std::istringstream &src)
+bool	RequestParser::parseHeaders(std::istringstream &src)
 {
-	std::stringstream	ss;
-	std::string			line, key, val;
+	std::string	line, key, val;
+	std::string::size_type	valPos;
 
 	while (std::getline(src, line))
 	{
-		if (line.empty() || line == "\r")
-			break;
+		if (line == "\r")
+			return true;
+		
+		if (*(line.end() - 1) != '\r') // if not cr at the end
+			return false;
 
-		ss.clear();
-		ss.str(line);
-		ss >> key >> std::ws;
-
-		if (key[key.length() - 1] == ':')
-		{
-			key.erase(key.length() - 1);
-			val = ss.str().substr(ss.tellg());
-			if (val.find("\r") != std::string::npos)
-				val.erase(val.find("\r"));
-			_headers[key] = val;
-		}
+		if ((valPos = line.find(": ")) == std::string::npos)
+			return false;
+		key = line.substr(0, valPos);
+		val = line.substr(valPos + 2, line.length() - valPos - 3);
+		_headers[key] = val;
+		// std::cout << key << ": " << val << '\n';
 	}
+	return false;
 }
 
 void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf)
@@ -254,10 +288,10 @@ const size_t	&RequestParser::getMessageBodyLen() const
 	return _msgLen;
 }
 
-const size_t	&RequestParser::getReadLen() const
-{
-	return _readLen;
-}
+// const size_t	&RequestParser::getReadLen() const
+// {
+// 	return _readLen;
+// }
 
 RequestParser::t_reqLine &RequestParser::t_reqLine::operator=(const t_reqLine &src)
 {

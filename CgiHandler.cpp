@@ -98,7 +98,7 @@ void	CgiHandler::setBodyAndHeaders(const std::string &buf)
 	_res->setCode(200);
 	while (std::getline(ss, line))
 	{
-		if (line.empty() || line == "\r")
+		if (line == "\r")
 			break;
 		std::string::size_type	pos = line.find(": ");
 		key = line.substr(0, pos);
@@ -111,12 +111,12 @@ void	CgiHandler::setBodyAndHeaders(const std::string &buf)
 			_res->setHeader(key, val);
 	}
 	_res->setMessageBody(buf.substr(ss.tellg()));
-	try
-	{
-		_res->getHeaders().at("Content-Length");
-	}
-	catch (const std::exception &e)
-	{
-		_res->setContentLength();
-	}
+	// try
+	// {
+	// 	_res->getHeaders().at("Content-Length");
+	// }
+	// catch (const std::exception &e)
+	// {
+	// 	_res->setContentLength();
+	// }
 }

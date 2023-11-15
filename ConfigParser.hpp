@@ -52,6 +52,7 @@ private:
 	void	parseAutoIndex(const std::string &, uintptr_t);
 	void	parseCliMaxBodySize(const std::string &, uintptr_t);
 	void	parseErrPage(const std::string &, uintptr_t);
+	void	parseReturn(const std::string &, uintptr_t);
 	void	parseLimitExcept(const std::string &, uintptr_t);
 	void	parseCgiPass(const std::string &, uintptr_t);
 
