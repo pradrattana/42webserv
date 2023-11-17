@@ -24,10 +24,6 @@ def main():
    
 
     if os.path.exists(abspath):
-        # print("HTTP/1.1 200 OK")
-        # print("Content-Type: application/octet-stream")
-        # print(f"Content-Disposition: attachment; filename={filename}")
-        # print()
         with open(abspath, 'rb') as f:
             ret = f.read()
            

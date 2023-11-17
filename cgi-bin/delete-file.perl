@@ -14,13 +14,15 @@ my $cwd = getcwd();
 my $path = $cwd . "/html" . $fullPath;
 
 my $success = "FILE $fileName deleted successfully.";
-my $fail = "File $fileName not found.";
+my $fail = "File $fileName not found." . "\0";
+
+# my $msg = pack("Z*", $success\r\n\r\n");
 
 my $successLength = length($success);
 
 if (-e $path) {
     unlink $path or die $fail;
-    print "HTTP/1.1 200 OK\r\n\r\nContent-Length: $successLength\r\nContent-Type: plain/text\r\n\r\n$success\r\n\r\n";
+    print "$success\r\n" . "\0\r\n";
 } else {
     print $fail;
 }

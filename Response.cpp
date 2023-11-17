@@ -377,7 +377,6 @@ void Response::methodGet()
 	else if (_fullPath.find(".php") == std::string::npos)
 	{
 		setMessageBody();
-		// setContentLength();
 		setContentType();
 		if (_fullPath.find(_request.getUri()) != std::string::npos){
 			std::string res = "";
@@ -408,14 +407,19 @@ void Response::methodPost()
 void Response::methodDelete()
 {
 	setDate();
+	setContentType();
 	std::string temp = "";
-	_cgi.executeCgiDelete(_request, temp);	
 	std::stringstream ss;
-	std::cout << "delete :\n" << temp << std::endl;
-	if (temp.find("OK") == std::string::npos)
+	_cgi.executeCgiDelete(_request, temp);	
+	if (temp.find("not found") != std::string::npos)
 		throw 404;
+
+	std::cout << "check response\n";
+	std::cout << temp << std::endl;
 	std::copy(temp.begin(), temp.end(), std::ostreambuf_iterator<char>(ss));
 	_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
+	setMessageBody(_response);
+	_code = 200;	
 }
 
 char	**Response::toEnv(char **&env)
