@@ -25,11 +25,9 @@ public:
 	~CgiHandler();
 	CgiHandler &operator=(const CgiHandler &);
 
-	const std::string	getCgiFullPath(const std::string &) const;
 	void	executeCgi(const std::string &);
-	// void	exportEnv();
-
-	void	setBodyAndHeaders(const std::string &);
+	void	setBodyAndHeaders(const std::vector<char> &);
+	const std::string	getCgiFullPath(const std::string &) const;
 
 private:
 	Response	*_res;

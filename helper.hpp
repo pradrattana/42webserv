@@ -181,7 +181,6 @@ inline std::string &formatPath(std::string &dst)
 	if (dst.length() > 1)
 		if (*(dst.end() - 1) == '/')
 			dst.erase(dst.end() - 1);
-	std::cout << "format " << dst << '\n';
 	return dst;
 }
 

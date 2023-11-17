@@ -11,7 +11,7 @@
 # include <sys/stat.h>
 # include <dirent.h>
 # include <map>
-# include <set>
+# include <vector>
 # include <utility>
 # include <algorithm>
 # include "ConfigParser.hpp"
@@ -31,7 +31,8 @@ public:
 
 	void	setResponse();
 	void	setMessageBody();
-	void	setMessageBody(const std::string &);
+	void	setMessageBody(std::istream &);
+	void	setMessageBody(const std::vector<char> &);
 	void	setHeader(const std::string &, const std::string &);
 	void	setCode(const int);
 
@@ -56,27 +57,26 @@ public:
 	const std::string	getStatusLine() const;
 	const std::map<std::string, std::string>	&getHeaders() const;
 	const std::string	getHeadersText() const;
-	const std::string	&getMessageBody() const;
-	const std::string	&getResponse() const;
+	const std::vector<char>	&getResponse() const;
 	const RequestParser	&getRequest() const;
 
-	void	printFileSize(std::ostringstream &, const std::string &);
-	void	printDateModified(std::ostringstream &, const std::string &);
-	void	printStyle(std::ostringstream &);
-	void	printTable(std::ostringstream &, std::stringstream &);
-
+	// DirListing
+	void	printFileSize(std::stringstream &, const std::string &);
+	void	printDateModified(std::stringstream &, const std::string &);
+	void	printStyle(std::stringstream &);
+	void	printTable(std::stringstream &, std::stringstream &);
 
 private:
 	CgiHandler		_cgi;
 	RequestParser	_request;
 	t_locationData	_reqLoc;
 
-	std::string		_fullPath;
-	std::string		_response;
+	std::string			_fullPath;
+	std::vector<char>	_response;
 
-	int									_code;
+	int					_code;
 	std::map<std::string, std::string>	_headers;
-	std::string							_msgBody;
+	std::vector<char>	_msgBody;
 
 	std::map<int, std::string>	_statMaping;
 

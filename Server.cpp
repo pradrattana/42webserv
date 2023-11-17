@@ -179,13 +179,12 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 		Response rp;
 		if (!rp.processing(fdToServ.second, sockfd))
 		{
-			std::cout << "erase cli\n";
+			std::cout << "erase cli " << sockfd << std::endl;
 			FD_CLR(sockfd, &_allSet);
 			_cli.erase(sockfd);
 			return 0;
 		}
-		const char *response = rp.getResponse().c_str();
-		write(sockfd, response, strlen(response));
+		write(sockfd, rp.getResponse().data(), rp.getResponse().size());
 
 		return (--nready <= 0);
 	}

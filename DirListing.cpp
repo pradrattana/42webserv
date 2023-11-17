@@ -1,70 +1,15 @@
 #include "Response.hpp"
 
-void	Response::printFileSize(std::ostringstream &oss, const std::string &name) {
-	struct stat statbuf;
-
-	if (stat(name.c_str(), &statbuf) == 0) {
-		if (statbuf.st_size >= 1000) {
-			oss << statbuf.st_size / 1000 << " kB";
-		} else {
-			oss << statbuf.st_size << " B";
-		}
-	}
-}
-
-void	Response::printDateModified(std::ostringstream &oss, const std::string &name) {
-	struct stat statbuf;
-
-	if (stat(name.c_str(), &statbuf) == 0) {
-		char mbstr[100];
-		if (std::strftime(mbstr, sizeof(mbstr),
-						  "%D %r", std::localtime(&statbuf.st_mtime)))
-			oss << mbstr;
-	}
-}
-
-void	Response::printStyle(std::ostringstream &oss) {
-	oss << "<style>"
-		<< "td {padding: 0 2em}"
-		<< "</style>";
-}
-
-void	Response::printTable(std::ostringstream &oss, std::stringstream &ss) {
-	std::string	path(_fullPath), dname;
-
-	oss << "<table>"
-	   << "<thead><tr><th>Name</th><th>Size</th><th>Date Modified</th></tr></thead>"
-	   << "<tbody>";
-
-	while (std::getline(ss, dname)) {
-		if (dname == "." || dname == "..")
-			continue ;
-		path.replace(path.rfind('/') + 1, std::string::npos, dname);
-		oss << "<tr>";
-		oss << "<td><a href=\"" << dname << "\">" << dname << "</a></td>";
-		oss << "<td class=\"\">";
-		printFileSize(oss, path);
-		oss << "</td>";
-		oss << "<td>";
-		printDateModified(oss, path);
-		oss << "</td>";
-		oss << "</tr>";
-	}
-	
-	oss << "</tobody>"
-	   << "</table>";
-}
-
 void	Response::directoryListing() {
-	std::ostringstream	oss;
+	std::stringstream	ss;
 	std::stringstream	dirList;
 	DIR				*dir;
 	struct dirent	*ent;
 
-	oss << "<!DOCYTPE html><html>"
+	ss << "<!DOCYTPE html><html>"
 		<< "<head>";
-	printStyle(oss);
-	oss << "</head>"
+	printStyle(ss);
+	ss << "</head>"
 		<< "<body>"
 		<< "<h1>Index of " << _request.getUri() << "</h1>"
 		<< "<p><a href=\"..\">[parent directory]</a></p>";
@@ -73,11 +18,65 @@ void	Response::directoryListing() {
 			dirList << ent->d_name << "\n";
 		closedir(dir);
 	}
-	printTable(oss, dirList);
-	oss << "</body>"
+	printTable(ss, dirList);
+	ss << "</body>"
 		<< "</html>";
 
-	_msgBody = oss.str();
-	setContentLength();
+	setMessageBody(ss);
 	_headers["Content-Type"] = "text/html";
+}
+
+void	Response::printFileSize(std::stringstream &ss, const std::string &name) {
+	struct stat statbuf;
+
+	if (stat(name.c_str(), &statbuf) == 0) {
+		if (statbuf.st_size >= 1000) {
+			ss << statbuf.st_size / 1000 << " kB";
+		} else {
+			ss << statbuf.st_size << " B";
+		}
+	}
+}
+
+void	Response::printDateModified(std::stringstream &ss, const std::string &name) {
+	struct stat statbuf;
+
+	if (stat(name.c_str(), &statbuf) == 0) {
+		char mbstr[100];
+		if (std::strftime(mbstr, sizeof(mbstr),
+						  "%D %r", std::localtime(&statbuf.st_mtime)))
+			ss << mbstr;
+	}
+}
+
+void	Response::printStyle(std::stringstream &ss) {
+	ss << "<style>"
+		<< "td {padding: 0 2em}"
+		<< "</style>";
+}
+
+void	Response::printTable(std::stringstream &ss, std::stringstream &src) {
+	std::string	path(_fullPath), dname;
+
+	ss << "<table>"
+	   << "<thead><tr><th>Name</th><th>Size</th><th>Date Modified</th></tr></thead>"
+	   << "<tbody>";
+
+	while (std::getline(src, dname)) {
+		if (dname == "." || dname == "..")
+			continue ;
+		path.replace(path.rfind('/') + 1, std::string::npos, dname);
+		ss << "<tr>";
+		ss << "<td><a href=\"" << dname << "\">" << dname << "</a></td>";
+		ss << "<td class=\"\">";
+		printFileSize(ss, path);
+		ss << "</td>";
+		ss << "<td>";
+		printDateModified(ss, path);
+		ss << "</td>";
+		ss << "</tr>";
+	}
+	
+	ss << "</tobody>"
+	   << "</table>";
 }

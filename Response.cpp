@@ -140,7 +140,7 @@ void Response::setRequestLocation(const t_serverData &serv)
 
 void Response::setResponse()
 {
-	std::ostringstream oss;
+	std::stringstream ss;
 
 	if (_code / 100 == 4 || _code / 100 == 5)
 	{
@@ -157,10 +157,9 @@ void Response::setResponse()
 	{
 		setContentLength();
 	}
-
-	oss << getStatusLine() << getHeadersText() << "\r\n"
-		<< _msgBody;;
-	_response = oss.str();
+	ss << getStatusLine() << getHeadersText() << "\r\n";
+	std::copy(_msgBody.begin(), _msgBody.end(), std::ostreambuf_iterator<char>(ss));
+	_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
 }
 
 void	Response::setCode(const int c) {
@@ -173,16 +172,22 @@ void	Response::setHeader(const std::string &k, const std::string &v) {
 
 void Response::setMessageBody()
 {
-	std::ostringstream oss;
-	std::ifstream ifs(_fullPath.c_str());
+	std::ifstream	ifs(_fullPath.c_str(), std::ios::binary);
 
+	if (!ifs.is_open())
+		throw 500;
 	_msgBody.assign(std::istreambuf_iterator<char>(ifs),
 					std::istreambuf_iterator<char>());
 	ifs.close();
 }
 
-void	Response::setMessageBody(const std::string &s) {
+void	Response::setMessageBody(const std::vector<char> &s) {
 	_msgBody = s;
+}
+
+void	Response::setMessageBody(std::istream &is) {
+	_msgBody.assign(std::istreambuf_iterator<char>(is),
+					std::istreambuf_iterator<char>());
 }
 
 bool Response::setFullPath()
@@ -250,6 +255,7 @@ void Response::setErrorPath()
 		}
 	}
 	oss << std::getenv("PWD") << "/webserv_default_error/error.html";
+	// oss << std::getenv("PWD") << "/webserv_default_error/error" << _code << ".html";
 	_fullPath = oss.str();
 }
 
@@ -287,7 +293,7 @@ void Response::setContentLength()
 {
 	std::ostringstream oss;
 
-	oss << _msgBody.length();
+	oss << _msgBody.size();
 	_headers["Content-length"] = oss.str();
 }
 
@@ -402,7 +408,7 @@ char	**Response::toEnv(char **&env)
 	return _request.toEnv(_reqLoc, env);
 }
 
-const std::string &Response::getResponse() const
+const std::vector<char>	&Response::getResponse() const
 {
 	return _response;
 }
@@ -425,11 +431,6 @@ const std::string Response::getHeadersText() const
 		 it != _headers.end(); it++)
 		oss << it->first << ": " << it->second << "\r\n";
 	return oss.str();
-}
-
-const std::string &Response::getMessageBody() const
-{
-	return _msgBody;
 }
 
 const std::map<std::string, std::string> &Response::getHeaders() const

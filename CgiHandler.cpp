@@ -47,7 +47,10 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 		char	**env = _res->toEnv(env);
 		char	*args[] = { (char *)cgi.c_str(), NULL };
 		if (execve(getCgiFullPath(cgi).c_str(), args, env) < 0)
-			perror("execve");
+		{
+			perror("execve in cgi");
+			throw 500;
+		}
 
 		for (int i = 0; env[i] != NULL; i++)
 			delete env[i];
@@ -59,15 +62,16 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	close(pp[1]);
 	waitpid(pid, 0, 0);
 
-	char	buf[1024];
-	int		bytes_read = read(pp[0], buf, sizeof(buf));
+	std::vector<char>	buf(1024);
+	int	bytesRead = read(pp[0], buf.data(), 1024);
 
 	close(pp[0]);
-	if (bytes_read == -1)
+	if (bytesRead == -1)
 	{
 		perror("read in cgi");
+		throw 500;
 	}
-	buf[bytes_read] = 0;
+	buf.resize(bytesRead);
 
 	setBodyAndHeaders(buf);
 }
@@ -90,9 +94,9 @@ const std::string	CgiHandler::getCgiFullPath(const std::string &s) const
 	return "";
 }
 
-void	CgiHandler::setBodyAndHeaders(const std::string &buf)
+void	CgiHandler::setBodyAndHeaders(const std::vector<char> &buf)
 {
-	std::stringstream ss(buf);
+	std::stringstream ss(buf.data());
 	std::string line, key, val;
 	
 	_res->setCode(200);
@@ -110,13 +114,5 @@ void	CgiHandler::setBodyAndHeaders(const std::string &buf)
 		else
 			_res->setHeader(key, val);
 	}
-	_res->setMessageBody(buf.substr(ss.tellg()));
-	// try
-	// {
-	// 	_res->getHeaders().at("Content-Length");
-	// }
-	// catch (const std::exception &e)
-	// {
-	// 	_res->setContentLength();
-	// }
+	_res->setMessageBody(ss);
 }
