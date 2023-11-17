@@ -50,7 +50,6 @@ int	RequestParser::readRequest(int sockfd)
 	FILE	*fp = fopen("myfile.bin", "wb");
 	if (fp == NULL)
 	{
-		fclose(fp);
 		free(buf);
 		return 500;
 	}
@@ -69,56 +68,6 @@ int	RequestParser::readRequest(int sockfd)
 	free(buf);
 	return 200;
 }
-
-// int	RequestParser::readRequest(int sockfd)
-// {
-// 	char	*buf = NULL;
-// 	size_t	tmpReadLen = 0;
-
-// 	do
-// 	{
-// 		if ((tmpReadLen = readToBuf(sockfd, buf)) == 0)
-// 		{
-// 			free(buf);
-// 			return 0;
-// 		}
-// 		_readLen += tmpReadLen;
-// 	} while (strstr(buf, "\r\n\r\n") == NULL);
-
-// 	std::istringstream	iss(buf);
-// 	std::string			line;
-
-// 	if (!std::getline(iss, line))
-// 		return 400;
-// 	if (!parseRequestLine(line))
-// 		return 400;
-// 	if (!parseHeaders(iss))
-// 		return 400;
-
-// 	try
-// 	{
-// 		parseMessageBody(iss.tellg(), sockfd, buf);
-// 		if (_msgLen > 0)
-// 		{
-// 			FILE	*fp = fopen("myfile.bin", "wb");
-// 			if (fp == NULL)
-// 			{
-// 				free(buf);
-// 				return 500;
-// 			}
-// 			fwrite(_msgBody, sizeof(_msgBody[0]), _msgLen, fp);
-// 			fclose(fp);
-// 		}
-// 	}
-// 	catch (int)
-// 	{
-// 		free(buf);
-// 		return 0;
-// 	}
-
-// 	free(buf);
-// 	return 200;
-// }
 
 size_t	RequestParser::readToBuf(int sockfd, char *&buf)
 {
@@ -255,33 +204,9 @@ void	RequestParser::parseMessageBody(int sockfd, int filefd)
 			}
 			bufsize += tmpReadLen;
 		}
-		std::cout << "msglen = " << _msgLen << '\n';
-		std::cout << "bufsize = " << bufsize << '\n';
 	}
 	_readLen += bufsize;
 }
-
-// void	RequestParser::parseMessageBody(int i, int sockfd, char *&buf)
-// {
-// 	size_t	tmpReadLen = 0;
-
-// 	if (getMethod() == "POST")
-// 	{
-// 		_msgLen = atoi(_headers.at("Content-Length").c_str());
-// 		while (_readLen - i < _msgLen)
-// 		{
-// 			tmpReadLen = readToBuf(sockfd, buf);
-// 			if (tmpReadLen == 0)
-// 			{
-// 				throw 0;
-// 			}
-// 			_readLen += tmpReadLen;
-// 		}
-// 	}
-// 	_msgBody = new char[_msgLen + 1];
-// 	memmove(_msgBody, buf + i, _msgLen);
-// 	_msgBody[_msgLen] = 0;
-// }
 
 char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env)
 {

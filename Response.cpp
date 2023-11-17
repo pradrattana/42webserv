@@ -190,42 +190,41 @@ void	Response::setMessageBody(std::istream &is) {
 					std::istreambuf_iterator<char>());
 }
 
-bool Response::setFullPath()
+bool	Response::setFullPath()
 {
 	std::ostringstream oss;
 	struct stat statBuf;
 
-	// if request index
-	if (_request.getUri() == "/")
-	{
-		for (std::vector<std::string>::const_iterator it = _reqLoc.index.begin();
-			 it != _reqLoc.index.end(); it++)
-		{
-			oss << _reqLoc.root << '/' << *it;
-			if (stat(oss.str().c_str(), &statBuf) == 0)
-			{
-				_fullPath = oss.str();
-				return S_ISDIR(statBuf.st_mode);
-			}
-			oss.clear();
-			oss.str("");
-		}
-	}
+	oss << _reqLoc.root;
+	if (!_reqLoc.isRootOvr) 
+		oss << _request.getUri();
 	else
+		oss << _request.getUri().substr(_request.getUri().find(_reqLoc.uri) + _reqLoc.uri.length());
+
+	if (_request.getUri().find('.') == std::string::npos)
 	{
-		oss << _reqLoc.root;
-		// if location doesn't overridden root
-		if (!_reqLoc.isRootOvr) 
-			oss << _request.getUri();
-		else
-			oss << _request.getUri().substr(_request.getUri().find(_reqLoc.uri) + _reqLoc.uri.length());
-		// std::cout << "full: " << oss.str() << '\n';
-		if (stat(oss.str().c_str(), &statBuf) == 0)
+		if (*(oss.str().end() - 1) != '/' || _reqLoc.autoIdx == "off")
 		{
-			_fullPath = oss.str();
-			return S_ISDIR(statBuf.st_mode);
+			for (std::vector<std::string>::const_iterator it = _reqLoc.index.begin();
+					it != _reqLoc.index.end(); it++)
+			{
+				std::string	fname(oss.str());
+				fname.append('/' + *it);
+				if (stat(fname.c_str(), &statBuf) == 0)
+				{
+					_fullPath = fname;
+					return S_ISDIR(statBuf.st_mode);
+				}
+			}
 		}
 	}
+
+	if (stat(oss.str().c_str(), &statBuf) == 0)
+	{
+		_fullPath = oss.str();
+		return S_ISDIR(statBuf.st_mode);
+	}
+
 	if (errno == EACCES)
 		throw 403;
 	else if (errno == ENOENT)
@@ -245,17 +244,20 @@ void Response::setErrorPath()
 		{
 			if (std::find(it->code.begin(), it->code.end(), _code) != it->code.end())
 			{
-				oss << _reqLoc.root << it->uri;
-				if (stat(oss.str().c_str(), &statBuf) == 0)
+				if (it->uri.rfind(".php") == std::string::npos)
 				{
-					_fullPath = oss.str();
-					return;
+					oss << _reqLoc.root << it->uri;
+					if (stat(oss.str().c_str(), &statBuf) == 0)
+					{
+						_fullPath = oss.str();
+						return;
+					}
 				}
+				break;
 			}
 		}
 	}
-	oss << std::getenv("PWD") << "/webserv_default_error/error.html";
-	// oss << std::getenv("PWD") << "/webserv_default_error/error" << _code << ".html";
+	oss << std::getenv("PWD") << "/webserv_default_error/error" << _code << ".html";
 	_fullPath = oss.str();
 }
 
@@ -277,7 +279,6 @@ void Response::setLocation()
 
 	oss << "http://"
 		<< _request.getHeaders().at("Host")
-		// << (*_request.getUri().begin() == '/' ? "" : "/")
 		<< _request.getUri()
 		<< '/';
 
@@ -374,7 +375,7 @@ void Response::methodGet()
 		else
 			throw 403;
 	}
-	else if (_fullPath.find(".php") == std::string::npos)
+	else if (_fullPath.rfind(".php") == std::string::npos)
 	{
 		setMessageBody();
 		setContentType();

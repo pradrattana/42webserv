@@ -40,7 +40,10 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	{
 		close(pp[0]);
 
-		FILE	*fp = fopen("myfile.bin", "r");
+		FILE	*fp = fopen("myfile.bin", "rb");
+		if (fp == NULL)
+			throw 500;
+
 		dup2(fileno(fp), 0);
 		dup2(pp[1], 1);
 
@@ -55,8 +58,8 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 		for (int i = 0; env[i] != NULL; i++)
 			delete env[i];
 		delete[] env;
-		fclose(fp);
 		close(pp[1]);
+		fclose(fp);
 		exit(0);
 	}
 	close(pp[1]);
