@@ -169,13 +169,6 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 
 	if (FD_ISSET(sockfd, &_readSet))
 	{
-		// Response rp(fdToServ.second, sockfd);
-		// if (rp.getRequest().getReadLen() == 0)
-		// {
-		// 	FD_CLR(sockfd, &_allSet);
-		// 	_cli.erase(sockfd);
-		// 	return 0;
-		// }
 		Response rp;
 		if (!rp.processing(fdToServ.second, sockfd))
 		{
@@ -185,7 +178,8 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 			return 0;
 		}
 		std::cout << "send response\n";
-		std::cout << rp.getResponse().data() << std::endl;
+		// std::cout << rp.getResponse().data() << std::endl;
+		// write(1, rp.getResponse().data(), rp.getResponse().size());
 		write(sockfd, rp.getResponse().data(), rp.getResponse().size());
 
 		return (--nready <= 0);

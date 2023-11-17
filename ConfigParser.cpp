@@ -318,8 +318,8 @@ void	ConfigParser::parseRoot(const std::string &s, uintptr_t p)
 	{
 		if (isPathValid(col))
 		{
-			if (*col.begin() == '/')
-				col.erase(col.begin(), col.begin() + 1);
+			if (*(col.end() - 1) == '/')
+				col.erase(col.end() - 1);
 			*deserialize<std::string>(p) = col;
 			return ;
 		}
