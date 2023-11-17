@@ -382,7 +382,7 @@ void Response::methodGet()
 		if (_fullPath.find(_request.getUri()) != std::string::npos){
 			std::string res = "";
 			std::stringstream ss;
-			_cgi.executeCgiDownload(_fullPath, _request, res);
+			_cgi.executeCgiDownload(_fullPath, res);
 			std::copy(res.begin(), res.end(), std::ostreambuf_iterator<char>(ss));
 			_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
 		}
@@ -407,7 +407,15 @@ void Response::methodPost()
 
 void Response::methodDelete()
 {
-
+	setDate();
+	std::string temp = "";
+	_cgi.executeCgiDelete(_request, temp);	
+	std::stringstream ss;
+	std::cout << "delete :\n" << temp << std::endl;
+	if (temp.find("OK") == std::string::npos)
+		throw 404;
+	std::copy(temp.begin(), temp.end(), std::ostreambuf_iterator<char>(ss));
+	_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
 }
 
 char	**Response::toEnv(char **&env)
@@ -448,7 +456,53 @@ const std::map<std::string, std::string> &Response::getHeaders() const
 const RequestParser	&Response::getRequest() const
 {
 	return _request;
-}
+int	pipefd[2];
+
+	std::cout << "methodDelete\n";
+	if (pipe(pipefd) == -1) {
+		perror("error pipe");
+		exit(EXIT_FAILURE);
+	}
+	std::string filename = "filename=";
+	std::string fullpath = "fullpath=" ;
+	fullpath.append(_request.getUri().c_str(), _request.getUri().length());
+	size_t pos = _request.getUri().find("download/");
+	if (pos != std::string::npos)
+		filename.append(_request.getUri().substr(pos + 9, _request.getUri().length() - pos - 9));
+	std::cout << "check filename : " << filename << std::endl;
+	std::cout << "check fullpath : " << fullpath << std::endl;
+	char *fname = const_cast<char *>(filename.c_str());
+	char cgi[27] = "cgi-bin/delete-file.perl";
+	char *save_path = const_cast<char*>(fullpath.c_str());
+	char *arg[2] = {cgi, NULL};
+	char *env[3] = {save_path, fname, NULL};
+	int pid = fork();
+	if (pid < 0)
+		perror("fork failed : ");
+	if (pid == 0) {
+		close(pipefd[0]); //close read
+		dup2(pipefd[1], STDOUT_FILENO);
+		if (execve(arg[0], &arg[0], env) == -1){
+			perror("");
+			std::cout << "execve failed\n";
+		}
+		exit(0);
+	}
+	close(pipefd[1]);
+	char	buf[MAXLINE];
+	int status;
+	std::string temp  = "";
+	int		bytes_read = 1;
+	while (bytes_read > 0) {
+		bytes_read = read(pipefd[0], buf, MAXLINE);
+		if (bytes_read < 0){
+			perror("read failed : ");
+			break;
+		}
+		temp.append(buf, bytes_read);
+	}
+	close(pipefd[0]);
+	waitpid(pid, &status, 0);}
 
 std::string	dropFilename(const std::string &path)
 {

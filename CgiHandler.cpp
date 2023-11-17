@@ -76,7 +76,7 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	setBodyAndHeaders(buf);
 }
 
-void CgiHandler::executeCgiDownload(std::string _fullPath, RequestParser _request, std::string &_response){
+void CgiHandler::executeCgiDownload(std::string _fullPath, std::string &_response){
 	int	pipeinfd[2];
 	int pipeoutfd[2];
 
@@ -134,6 +134,53 @@ void CgiHandler::executeCgiDownload(std::string _fullPath, RequestParser _reques
 	close(pipeoutfd[0]);
 	waitpid(pid, &status, 0);
 	_response = temp;
+}
+
+void CgiHandler::executeCgiDelete(RequestParser _request, std::string &res){
+	int	pipefd[2];
+
+	std::cout << "methodDelete\n";
+	if (pipe(pipefd) == -1) {
+		perror("error pipe");
+		exit(EXIT_FAILURE);
+	}
+	std::string filename = "filename=";
+	std::string fullpath = "fullpath=" ;
+	fullpath.append(_request.getUri().c_str(), _request.getUri().length());
+	size_t pos = _request.getUri().find("download/");
+	if (pos != std::string::npos)
+		filename.append(_request.getUri().substr(pos + 9, _request.getUri().length() - pos - 9));
+	char *fname = const_cast<char *>(filename.c_str());
+	char cgi[27] = "cgi-bin/delete-file.perl";
+	char *save_path = const_cast<char*>(fullpath.c_str());
+	char *arg[2] = {cgi, NULL};
+	char *env[3] = {save_path, fname, NULL};
+	int pid = fork();
+	if (pid < 0)
+		perror("fork failed : ");
+	if (pid == 0) {
+		close(pipefd[0]); //close read
+		dup2(pipefd[1], STDOUT_FILENO);
+		if (execve(arg[0], &arg[0], env) == -1){
+			perror("");
+			std::cout << "execve failed\n";
+		}
+		exit(0);
+	}
+	close(pipefd[1]);
+	char	buf[MAXLINE];
+	int status;
+	int		bytes_read = 1;
+	while (bytes_read > 0) {
+		bytes_read = read(pipefd[0], buf, MAXLINE);
+		if (bytes_read < 0){
+			perror("read failed : ");
+			break;
+		}
+		res.append(buf, bytes_read);
+	}
+	close(pipefd[0]);
+	waitpid(pid, &status, 0);
 }
 
 const std::string	CgiHandler::getCgiFullPath(const std::string &s) const

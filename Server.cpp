@@ -184,6 +184,8 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 			_cli.erase(sockfd);
 			return 0;
 		}
+		std::cout << "send response\n";
+		std::cout << rp.getResponse().data() << std::endl;
 		write(sockfd, rp.getResponse().data(), rp.getResponse().size());
 
 		return (--nready <= 0);

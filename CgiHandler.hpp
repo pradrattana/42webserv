@@ -27,7 +27,8 @@ public:
 	CgiHandler &operator=(const CgiHandler &);
 
 	void	executeCgi(const std::string &);
-	void	executeCgiDownload(std::string , RequestParser , std::string &);
+	void	executeCgiDownload(std::string , std::string &);
+	void 	executeCgiDelete(RequestParser _request, std::string &res);
 	void	setBodyAndHeaders(const std::vector<char> &);
 	const std::string	getCgiFullPath(const std::string &) const;
 
