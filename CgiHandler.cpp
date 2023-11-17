@@ -136,10 +136,9 @@ void CgiHandler::executeCgiDownload(std::string _fullPath, std::string &_respons
 	_response = temp;
 }
 
-void CgiHandler::executeCgiDelete(RequestParser _request, std::string &res){
+void CgiHandler::executeCgiDelete(RequestParser &_request, std::string &res){
 	int	pipefd[2];
 
-	std::cout << "methodDelete\n";
 	if (pipe(pipefd) == -1) {
 		perror("error pipe");
 		exit(EXIT_FAILURE);
@@ -147,9 +146,9 @@ void CgiHandler::executeCgiDelete(RequestParser _request, std::string &res){
 	std::string filename = "filename=";
 	std::string fullpath = "fullpath=" ;
 	fullpath.append(_request.getUri().c_str(), _request.getUri().length());
-	size_t pos = _request.getUri().find("download/");
+	size_t pos = _request.getUri().find_last_of('/');
 	if (pos != std::string::npos)
-		filename.append(_request.getUri().substr(pos + 9, _request.getUri().length() - pos - 9));
+		filename.append(_request.getUri().substr(pos + 1, _request.getUri().length()));
 	char *fname = const_cast<char *>(filename.c_str());
 	char cgi[27] = "cgi-bin/delete-file.perl";
 	char *save_path = const_cast<char*>(fullpath.c_str());

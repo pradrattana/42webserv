@@ -14,7 +14,7 @@ my $cwd = getcwd();
 my $path = $cwd . "/html" . $fullPath;
 
 my $success = "FILE $fileName deleted successfully.";
-my $fail = "File $path not found.";
+my $fail = "File $fileName not found.";
 
 my $successLength = length($success);
 
