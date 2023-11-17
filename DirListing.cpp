@@ -67,7 +67,7 @@ void	Response::printTable(std::stringstream &ss, std::stringstream &src) {
 			continue ;
 		path.replace(path.rfind('/') + 1, std::string::npos, dname);
 		ss << "<tr>";
-		ss << "<td><a href=\"" << dname << "\">" << dname << "</a></td>";
+		ss << "<td><a href=\"" << dname << "\" download>" << dname << "</a></td>";
 		ss << "<td class=\"\">";
 		printFileSize(ss, path);
 		ss << "</td>";

@@ -76,6 +76,66 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	setBodyAndHeaders(buf);
 }
 
+void CgiHandler::executeCgiDownload(std::string _fullPath, RequestParser _request, std::string &_response){
+	int	pipeinfd[2];
+	int pipeoutfd[2];
+
+	if (pipe(pipeinfd) == -1 || pipe(pipeoutfd) == -1) {
+		perror("error pipe");
+		exit(EXIT_FAILURE);
+	}
+	std::string filename = "filename=";
+	std::string fullpath = "fullpath=" ;
+	std::string filedes = "fd=";
+	std::ostringstream num;
+	num << pipeoutfd[1];
+	filedes.append(num.str());
+	fullpath.append(&_fullPath.c_str()[1], _fullPath.length());
+	size_t pos = _fullPath.find_last_of('/');
+	if (pos != std::string::npos)
+		filename.append(_fullPath.substr(pos + 1, _fullPath.length()));
+	char *fname = const_cast<char *>(filename.c_str());
+	char cgi[27] = "cgi-bin/download-file.py";
+	char *save_path = const_cast<char*>(fullpath.c_str());
+	char *fd = const_cast<char *>(filedes.c_str());
+	char *arg[2] = {cgi, NULL};
+	char *env[4] = {save_path, fname, fd, NULL};
+	int pid = fork();
+	if (pid < 0)
+		perror("fork failed : ");
+	if (pid == 0) {
+		close(pipeinfd[1]); //close read
+		close(pipeoutfd[0]);
+		dup2(pipeinfd[0], STDIN_FILENO);
+		dup2(pipeoutfd[1], STDOUT_FILENO);
+		close(pipeinfd[0]);
+		close(pipeoutfd[0]);
+		if (execve(arg[0], &arg[0], env) == -1){
+			perror("");
+			std::cout << "execve failed\n";
+		}
+		exit(0);
+	}
+	close(pipeoutfd[1]); //close write
+	close(pipeinfd[0]);
+	close(pipeinfd[1]);
+	char	buf[MAXLINE];
+	int status;
+	std::string temp  = "";
+	int		bytes_read = 1;
+	while (bytes_read > 0) {
+		bytes_read = read(pipeoutfd[0], buf, MAXLINE);
+		if (bytes_read < 0){
+			perror("read failed : ");
+			break;
+		}
+		temp.append(buf, bytes_read);
+	}
+	close(pipeoutfd[0]);
+	waitpid(pid, &status, 0);
+	_response = temp;
+}
+
 const std::string	CgiHandler::getCgiFullPath(const std::string &s) const
 {
 	std::stringstream	ss(getenv("PATH"));

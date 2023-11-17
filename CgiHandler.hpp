@@ -14,6 +14,7 @@
 # include <sys/wait.h>
 # include "helper.hpp"
 # include "webservStruct.hpp"
+# include "RequestParser.hpp"
 
 class Response;
 
@@ -26,6 +27,7 @@ public:
 	CgiHandler &operator=(const CgiHandler &);
 
 	void	executeCgi(const std::string &);
+	void	executeCgiDownload(std::string , RequestParser , std::string &);
 	void	setBodyAndHeaders(const std::vector<char> &);
 	const std::string	getCgiFullPath(const std::string &) const;
 

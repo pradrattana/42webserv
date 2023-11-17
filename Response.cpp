@@ -379,6 +379,13 @@ void Response::methodGet()
 		setMessageBody();
 		// setContentLength();
 		setContentType();
+		if (_fullPath.find(_request.getUri()) != std::string::npos){
+			std::string res = "";
+			std::stringstream ss;
+			_cgi.executeCgiDownload(_fullPath, _request, res);
+			std::copy(res.begin(), res.end(), std::ostreambuf_iterator<char>(ss));
+			_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
+		}
 	}
 	else
 	{
