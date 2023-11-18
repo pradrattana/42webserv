@@ -118,21 +118,6 @@ void Server::waiting()
 			}
 		}
 	}
-	//clear all bit fd in _cli
-	// for (std::map<int, std::set<t_serverData> >::iterator it = _cli.begin();
-	// 	 it != _cli.end();)
-	// {
-	// 	std::map<int, std::set<t_serverData> >::iterator itNext = ++it;
-	// 	it--;
-	// 	int sockfd;
-	// 	if (FD_ISSET(sockfd, &_readSet))
-	// 	{
-	// 		std::cout << close(sockfd) << "\n";
-	// 		FD_CLR(sockfd, &_allSet);
-	// 		_cli.erase(sockfd);
-	// 	}
-	// 	it = itNext;
-	// }
 	//clear memory in _allSock
 	for (std::vector<Socket *>::iterator it = _allSock.begin();
 		 it != _allSock.end(); it++)
