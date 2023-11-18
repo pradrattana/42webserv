@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Cwd;
+use File::Path qw(rmtree);
 
 # Get the environment variable
 my $fileName = $ENV{'SCRIPT_NAME'}; # Replace 'YOUR_ENV_VARIABLE_NAME' with the actual environment variable name
@@ -22,8 +23,13 @@ my $fail = "Status: 404\r\n" . "Content-type: text/plain\r\n" . "\r\n" . "File $
 my $successLength = length($success);
 
 if (-e $path) {
-    unlink $path or die $fail;
-    print $success;
+    if (-d $path) {
+        rmtree($path) or die $fail;
+        print $success;
+    } else {
+        unlink $path or die $fail;
+        print $success;
+    }
 } else {
     print $fail;
 }
