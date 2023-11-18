@@ -278,7 +278,8 @@ void	ConfigParser::parseListen(const std::string &s, uintptr_t p)
 	{
 		if ((pos = col.rfind(':')) != std::string::npos)
 		{
-			lsn.addr = col.substr(0, pos);
+			if (!isIPv4(lsn.addr = col.substr(0, pos)))
+				throw ConfigParser::InvalidConfigException();
 			iss.seekg(pos + 1);
 		} else
 		{

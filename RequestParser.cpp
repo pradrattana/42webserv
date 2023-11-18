@@ -192,18 +192,23 @@ void	RequestParser::parseMessageBody(int sockfd, int filefd)
 	size_t	bufsize = 0;
 	size_t	tmpReadLen = 0;
 
-	if (getMethod() == "POST")
+	try
 	{
 		_msgLen = atoi(_headers.at("Content-Length").c_str());
-		while (bufsize < _msgLen)
+	}
+	catch (const std::exception &e)
+	{
+		return;
+	}
+
+	while (bufsize < _msgLen)
+	{
+		tmpReadLen = readToFile(sockfd, filefd);
+		if (tmpReadLen == 0)
 		{
-			tmpReadLen = readToFile(sockfd, filefd);
-			if (tmpReadLen == 0)
-			{
-				throw 0;
-			}
-			bufsize += tmpReadLen;
+			throw 0;
 		}
+		bufsize += tmpReadLen;
 	}
 	_readLen += bufsize;
 }
@@ -306,14 +311,14 @@ const size_t	&RequestParser::getMessageBodyLen() const
 // 	return _readLen;
 // }
 
-RequestParser::t_reqLine &RequestParser::t_reqLine::operator=(const t_reqLine &src)
-{
-	if (this == &src)
-	{
-		method = src.method;
-		uri = src.uri;
-		query = src.query;
-		version = src.version;
-	}
-	return *this;
-}
+// RequestParser::t_reqLine &RequestParser::t_reqLine::operator=(const t_reqLine &src)
+// {
+// 	if (this == &src)
+// 	{
+// 		method = src.method;
+// 		uri = src.uri;
+// 		query = src.query;
+// 		version = src.version;
+// 	}
+// 	return *this;
+// }
