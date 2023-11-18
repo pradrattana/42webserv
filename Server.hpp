@@ -45,6 +45,8 @@ private:
 	std::vector<Socket *>	_allSock;
 	fd_set	_allSet;
 	fd_set	_readSet;
+	fd_set _writeSet;
+	fd_set _exceptSet;
 	int		_maxFd;
 	std::map<int, t_serverData>	_portToServ;
 	std::map<int, t_serverData>	_cli;

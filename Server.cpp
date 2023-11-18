@@ -93,7 +93,7 @@ void Server::waiting()
 	while (_isRunning)
 	{
 		_readSet = _allSet;
-		nready = select(_maxFd + 1, &_readSet, NULL, NULL, NULL);
+		nready = select(_maxFd + 1, &_readSet, &_writeSet, &_exceptSet, NULL);
 		if (nready >= 0)
 		{
 			for (std::vector<Socket *>::iterator it = _allSock.begin();
@@ -178,9 +178,12 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 			return 0;
 		}
 		std::cout << "send response\n";
-		// std::cout << rp.getResponse().data() << std::endl;
+		FD_SET(sockfd, &_writeSet);
+		if (FD_ISSET(sockfd, &_writeSet))
 		// write(1, rp.getResponse().data(), rp.getResponse().size());
-		write(sockfd, rp.getResponse().data(), rp.getResponse().size());
+			write(sockfd, rp.getResponse().data(), rp.getResponse().size());
+		// else
+			// FD_SET(sockfd, &_writeSet);
 
 		return (--nready <= 0);
 	}
