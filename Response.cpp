@@ -39,7 +39,11 @@ bool	Response::processing(const t_serverData &serv, int sockfd)
 	initStatusMapping();
 	try
 	{
+		if (ret == 400)
+			throw 400;
 		setRequestLocation(serv);
+		if (ret == 500)
+			throw 500;
 		methodHandler();
 	}
 	catch (int e)
@@ -345,6 +349,9 @@ void Response::methodHandler()
 				setLocation(_reqLoc.redir.url);
 				throw _reqLoc.redir.code;
 			}
+			if (_reqLoc.cliMax != 0)
+				if (_request.getMessageBodyLen() > _reqLoc.cliMax)
+					throw 413;
 			(this->*method[_request.getMethod()])();
 		}
 		else
@@ -394,17 +401,17 @@ void Response::methodGet()
 
 void Response::methodPost()
 {
-	if (_reqLoc.cliMax != 0)
-		if (_request.getMessageBodyLen() > _reqLoc.cliMax)
-			throw 413;
+	// if (_reqLoc.cliMax != 0)
+	// 	if (_request.getMessageBodyLen() > _reqLoc.cliMax)
+	// 		throw 413;
 	_cgi.executeCgi("php-cgi");
 }
 
 void Response::methodDelete()
 {
-	if (_reqLoc.cliMax != 0)
-		if (_request.getMessageBodyLen() > _reqLoc.cliMax)
-			throw 413;
+	// if (_reqLoc.cliMax != 0)
+	// 	if (_request.getMessageBodyLen() > _reqLoc.cliMax)
+	// 		throw 413;
 	_cgi.executeCgi("cgi-bin/delete-file.perl");
 
 	// setContentType();

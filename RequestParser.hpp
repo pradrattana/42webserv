@@ -26,7 +26,7 @@ private:
 		std::string	uri;
 		std::string	query;
 		std::string	version;
-		reqLine &operator=(const reqLine &src);
+		// reqLine &operator=(const reqLine &src);
 	}	t_reqLine;
 
 public:

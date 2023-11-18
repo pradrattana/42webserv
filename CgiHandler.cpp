@@ -74,17 +74,16 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	waitpid(pid, 0, 0);
 
 	std::vector<char>	data, buf(MAXLINE);
-	int	tmpReadLen, bytesRead;
+	int	tmpReadLen;
 	do
 	{
 		tmpReadLen = read(pp[0], buf.data(), MAXLINE);
-		if (bytesRead == -1)
+		if (tmpReadLen == -1)
 		{
 			perror("read in cgi");
 			throw 500;
 		}
 		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
-		bytesRead += tmpReadLen;
 	} while (tmpReadLen == MAXLINE);
 	close(pp[0]);
 	data.push_back('\0');
@@ -143,17 +142,16 @@ void CgiHandler::executeCgiDownload(const std::string &_fullPath){
 	close(pipeinfd[1]);
 
 	std::vector<char>	data, buf(MAXLINE);
-	int	tmpReadLen, bytesRead;
+	int	tmpReadLen;
 	do
 	{
 		tmpReadLen = read(pipeoutfd[0], buf.data(), MAXLINE);
-		if (bytesRead == -1)
+		if (tmpReadLen == -1)
 		{
 			perror("read in cgi");
 			throw 500;
 		}
 		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
-		bytesRead += tmpReadLen;
 	} while (tmpReadLen == MAXLINE);
 	close(pipeoutfd[0]);
 	data.push_back('\0');
@@ -200,17 +198,16 @@ void CgiHandler::executeCgiDelete(RequestParser &_request, std::string &res){
 	waitpid(pid, 0, 0);
 
 	std::vector<char>	data, buf(MAXLINE);
-	int	tmpReadLen, bytesRead;
+	int	tmpReadLen;
 	do
 	{
 		tmpReadLen = read(pipefd[0], buf.data(), MAXLINE);
-		if (bytesRead == -1)
+		if (tmpReadLen == -1)
 		{
 			perror("read in cgi");
 			throw 500;
 		}
 		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
-		bytesRead += tmpReadLen;
 	} while (tmpReadLen == MAXLINE);
 	close(pipefd[0]);
 	data.push_back('\0');
