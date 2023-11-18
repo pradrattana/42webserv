@@ -208,7 +208,7 @@ void	RequestParser::parseMessageBody(int sockfd, int filefd)
 	_readLen += bufsize;
 }
 
-char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env)
+char	**RequestParser::toEnv(const t_locationData &reqLoc, char **&env)
 {
 	std::map<std::string, std::string>	envMap;
 	std::string				host, key, line;
@@ -225,11 +225,14 @@ char	**RequestParser::toEnv(const t_locationData &servLoc, char **&env)
 	if ((pos = getUri().find('/', pos)) != std::string::npos)
 	{
 		envMap["PATH_INFO"] = getUri().substr(pos);
-		envMap["PATH_TRANSLATED"] = servLoc.root + getUri().substr(pos);
+		envMap["PATH_TRANSLATED"] = reqLoc.root + getUri().substr(pos);
 	}
 	envMap["SERVER_PROTOCOL"] = getVersion();
-	envMap["SCRIPT_NAME"] = getUri().substr(0, pos);
-	envMap["SCRIPT_FILENAME"] = servLoc.root + getUri().substr(0, pos);
+	if (!reqLoc.isRootOvr)
+		envMap["SCRIPT_NAME"] = getUri().substr(0, pos);
+	else
+		envMap["SCRIPT_NAME"] = getUri().substr(getUri().find(reqLoc.uri) + reqLoc.uri.length(), pos);
+	envMap["SCRIPT_FILENAME"] = reqLoc.root + envMap["SCRIPT_NAME"];
 	if (!getQuery().empty())
 		envMap["QUERY_STRING"] = getQuery();
 

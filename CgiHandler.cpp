@@ -31,10 +31,15 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	int	pp[2];
 	int	pid;
 
-	pipe(pp);
+	if (pipe(pp) < 0)
+	{
+		perror("pipe in cgi");
+		throw 500;
+	}
 	if ((pid = fork()) < 0)
 	{
-		exit(1);
+		perror("fork in cgi");
+		throw 500;
 	}
 	else if (pid == 0)
 	{
@@ -44,14 +49,17 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 		if (fp == NULL)
 			throw 500;
 
-		dup2(fileno(fp), 0);
-		dup2(pp[1], 1);
+		dup2(fileno(fp), STDIN_FILENO);
+		dup2(pp[1], STDOUT_FILENO);
 
 		char	**env = _res->toEnv(env);
 		char	*args[] = { (char *)cgi.c_str(), NULL };
 		if (execve(getCgiFullPath(cgi).c_str(), args, env) < 0)
 		{
 			perror("execve in cgi");
+			for (int i = 0; env[i] != NULL; i++)
+				delete env[i];
+			delete[] env;
 			throw 500;
 		}
 
@@ -65,27 +73,33 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 	close(pp[1]);
 	waitpid(pid, 0, 0);
 
-	std::vector<char>	buf(1024);
-	int	bytesRead = read(pp[0], buf.data(), 1024);
-
-	close(pp[0]);
-	if (bytesRead == -1)
+	std::vector<char>	data, buf(MAXLINE);
+	int	tmpReadLen, bytesRead;
+	do
 	{
-		perror("read in cgi");
-		throw 500;
-	}
-	buf.resize(bytesRead);
+		tmpReadLen = read(pp[0], buf.data(), MAXLINE);
+		if (bytesRead == -1)
+		{
+			perror("read in cgi");
+			throw 500;
+		}
+		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
+		bytesRead += tmpReadLen;
+	} while (tmpReadLen == MAXLINE);
+	close(pp[0]);
+	data.push_back('\0');
 
-	setBodyAndHeaders(buf);
+	setBodyAndHeaders(data);
 }
 
-void CgiHandler::executeCgiDownload(std::string _fullPath, std::string &_response){
+void CgiHandler::executeCgiDownload(const std::string &_fullPath){
 	int	pipeinfd[2];
 	int pipeoutfd[2];
 
-	if (pipe(pipeinfd) == -1 || pipe(pipeoutfd) == -1) {
-		perror("error pipe");
-		exit(EXIT_FAILURE);
+	if (pipe(pipeinfd) == -1 || pipe(pipeoutfd) == -1)
+	{
+		perror("pipe in cgi");
+		throw 500;
 	}
 	std::string filename = "filename=";
 	std::string fullpath = "fullpath=" ;
@@ -93,7 +107,7 @@ void CgiHandler::executeCgiDownload(std::string _fullPath, std::string &_respons
 	std::ostringstream num;
 	num << pipeoutfd[1];
 	filedes.append(num.str());
-	fullpath.append(&_fullPath.c_str()[1], _fullPath.length());
+	fullpath.append(&_fullPath.c_str()[0], _fullPath.length());
 	size_t pos = _fullPath.find_last_of('/');
 	if (pos != std::string::npos)
 		filename.append(_fullPath.substr(pos + 1, _fullPath.length()));
@@ -103,9 +117,13 @@ void CgiHandler::executeCgiDownload(std::string _fullPath, std::string &_respons
 	char *fd = const_cast<char *>(filedes.c_str());
 	char *arg[2] = {cgi, NULL};
 	char *env[4] = {save_path, fname, fd, NULL};
+	std::cout << filename << " " << fullpath << " " << filedes << '\n';
 	int pid = fork();
 	if (pid < 0)
-		perror("fork failed : ");
+	{
+		perror("fork in cgi");
+		throw 500;
+	}
 	if (pid == 0) {
 		close(pipeinfd[1]); //close read
 		close(pipeoutfd[0]);
@@ -113,30 +131,35 @@ void CgiHandler::executeCgiDownload(std::string _fullPath, std::string &_respons
 		dup2(pipeoutfd[1], STDOUT_FILENO);
 		close(pipeinfd[0]);
 		close(pipeoutfd[0]);
-		if (execve(arg[0], &arg[0], env) == -1){
-			perror("");
-			std::cout << "execve failed\n";
+		if (execve(arg[0], &arg[0], env) == -1)
+		{
+			perror("execve in cgi");
+			throw 500;
 		}
 		exit(0);
 	}
 	close(pipeoutfd[1]); //close write
 	close(pipeinfd[0]);
 	close(pipeinfd[1]);
-	char	buf[MAXLINE];
-	int status;
-	std::string temp  = "";
-	int		bytes_read = 1;
-	while (bytes_read > 0) {
-		bytes_read = read(pipeoutfd[0], buf, MAXLINE);
-		if (bytes_read < 0){
-			perror("read failed : ");
-			break;
+
+	std::vector<char>	data, buf(MAXLINE);
+	int	tmpReadLen, bytesRead;
+	do
+	{
+		tmpReadLen = read(pipeoutfd[0], buf.data(), MAXLINE);
+		if (bytesRead == -1)
+		{
+			perror("read in cgi");
+			throw 500;
 		}
-		temp.append(buf, bytes_read);
-	}
+		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
+		bytesRead += tmpReadLen;
+	} while (tmpReadLen == MAXLINE);
 	close(pipeoutfd[0]);
-	waitpid(pid, &status, 0);
-	_response = temp;
+	data.push_back('\0');
+
+	waitpid(pid, 0, 0);
+	setBodyAndHeaders(data);
 }
 
 void CgiHandler::executeCgiDelete(RequestParser &_request, std::string &res){
@@ -148,7 +171,7 @@ void CgiHandler::executeCgiDelete(RequestParser &_request, std::string &res){
 	}
 	std::string filename = "filename=";
 	std::string fullpath = "fullpath=" ;
-	fullpath.append(_request.getUri().c_str(), _request.getUri().length());
+	fullpath.append(_request.getUri().c_str()); //, _request.getUri().length());
 	size_t pos = _request.getUri().find_last_of('/');
 	if (pos != std::string::npos)
 		filename.append(_request.getUri().substr(pos + 1, _request.getUri().length()));
@@ -159,30 +182,41 @@ void CgiHandler::executeCgiDelete(RequestParser &_request, std::string &res){
 	char *env[3] = {save_path, fname, NULL};
 	int pid = fork();
 	if (pid < 0)
-		perror("fork failed : ");
+	{
+		perror("fork in cgi");
+		throw 500;
+	}
 	if (pid == 0) {
 		close(pipefd[0]); //close read
 		dup2(pipefd[1], STDOUT_FILENO);
-		if (execve(arg[0], &arg[0], env) == -1){
-			perror("");
-			std::cout << "execve failed\n";
+		if (execve(arg[0], &arg[0], env) == -1)
+		{
+			perror("execve in cgi");
+			throw 500;
 		}
 		exit(0);
 	}
 	close(pipefd[1]);
-	char	buf[MAXLINE];
-	int status;
-	int		bytes_read = 1;
-	while (bytes_read > 0) {
-		bytes_read = read(pipefd[0], buf, MAXLINE);
-		if (bytes_read < 0){
-			perror("read failed : ");
-			break;
+	waitpid(pid, 0, 0);
+
+	std::vector<char>	data, buf(MAXLINE);
+	int	tmpReadLen, bytesRead;
+	do
+	{
+		tmpReadLen = read(pipefd[0], buf.data(), MAXLINE);
+		if (bytesRead == -1)
+		{
+			perror("read in cgi");
+			throw 500;
 		}
-		res.append(buf, bytes_read);
-	}
+		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
+		bytesRead += tmpReadLen;
+	} while (tmpReadLen == MAXLINE);
 	close(pipefd[0]);
-	waitpid(pid, &status, 0);
+	data.push_back('\0');
+
+	setBodyAndHeaders(data);
+	(void)res;
 }
 
 const std::string	CgiHandler::getCgiFullPath(const std::string &s) const
@@ -190,6 +224,8 @@ const std::string	CgiHandler::getCgiFullPath(const std::string &s) const
 	std::stringstream	ss(getenv("PATH"));
 	std::string			dir, absPath;
 
+	if (s != "php-cgi")
+		return s;
 	while (std::getline(ss, dir, ':'))
 	{
 		absPath = dir;

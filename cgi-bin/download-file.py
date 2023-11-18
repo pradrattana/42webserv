@@ -9,7 +9,7 @@ import errno
 
 class Response:
 	def __init__(self, content, filename):
-		self._res = f"HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Length: {len(content)}\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename={filename}\r\n\r\n"
+		self._res = f"Connection: keep-alive\r\nContent-Length: {len(content)}\r\nContent-Type: application/octet-stream\r\nContent-Disposition: attachment; filename={filename}\r\n\r\n"
 
 	def __str__(self):
 		print(self._res)
@@ -20,7 +20,7 @@ def main():
     filename = os.environ.get('filename')
     fullpath = os.environ.get('fullpath')
     fd = os.environ.get('fd')
-    abspath = os.path.abspath(".") + fullpath
+    abspath = os.path.abspath("./") + fullpath
    
 
     if os.path.exists(abspath):
@@ -33,10 +33,10 @@ def main():
         f.close()
 
     else:
-        print("Content-Type: text/plain")
-        print("Status: 404 Not Found")
-        print()
-        print("Error 404: File not found")
+        print("Content-Type: text/plain\r")
+        print("Status: 404\r")
+        print("\r")
+        print("Error 404: File not found\r")
 
 if __name__ == '__main__':
     main()

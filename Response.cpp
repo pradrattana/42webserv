@@ -328,14 +328,14 @@ void Response::setContentType()
 void Response::methodHandler()
 {
 	std::map<std::string, void (Response::*)()> method;
-
 	method["GET"] = &Response::methodGet;
 	method["POST"] = &Response::methodPost;
 	method["DELETE"] = &Response::methodDelete;
 
+	setDate();
+
 	if (method.find(_request.getMethod()) != method.end())
 	{
-
 		std::cout << _request.getMethod() << "\n";
 		if (std::find(_reqLoc.limExcept.begin(), _reqLoc.limExcept.end(),
 					  _request.getMethod()) != _reqLoc.limExcept.end())
@@ -358,10 +358,7 @@ void Response::methodHandler()
 
 void Response::methodGet()
 {
-	setDate();
-
-	// if full path is directory
-	if (setFullPath())
+	if (setFullPath()) // if full path is directory
 	{
 		if (_reqLoc.autoIdx == "on")
 		{
@@ -379,12 +376,11 @@ void Response::methodGet()
 	{
 		setMessageBody();
 		setContentType();
-		if (_fullPath.find(_request.getUri()) != std::string::npos){
-			std::string res = "";
-			std::stringstream ss;
-			_cgi.executeCgiDownload(_fullPath, res);
-			std::copy(res.begin(), res.end(), std::ostreambuf_iterator<char>(ss));
-			_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
+		// if (_fullPath.find(_request.getUri()) != std::string::npos){
+		if (_reqLoc.cgiPass == "cgi-bin/download-file.py")
+		{
+			_cgi.executeCgiDownload(_fullPath);
+			return;
 		}
 	}
 	else
@@ -398,29 +394,32 @@ void Response::methodGet()
 
 void Response::methodPost()
 {
-	setDate();
 	if (_reqLoc.cliMax != 0)
 		if (_request.getMessageBodyLen() > _reqLoc.cliMax)
 			throw 413;
-	_cgi.executeCgi(_reqLoc.cgiPass);
+	_cgi.executeCgi("php-cgi");
 }
 
 void Response::methodDelete()
 {
-	setDate();
-	setContentType();
-	std::string temp = "";
-	std::stringstream ss;
-	_cgi.executeCgiDelete(_request, temp);	
-	if (temp.find("not found") != std::string::npos)
-		throw 404;
+	if (_reqLoc.cliMax != 0)
+		if (_request.getMessageBodyLen() > _reqLoc.cliMax)
+			throw 413;
+	_cgi.executeCgi("cgi-bin/delete-file.perl");
 
-	std::cout << "check response\n";
-	std::cout << temp << std::endl;
-	std::copy(temp.begin(), temp.end(), std::ostreambuf_iterator<char>(ss));
-	_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
-	setMessageBody(_response);
-	_code = 200;	
+	// setContentType();
+	// std::string temp = "";
+	// std::stringstream ss;
+	// _cgi.executeCgiDelete(_request, temp);	
+	// if (temp.find("not found") != std::string::npos)
+	// 	throw 404;
+
+	// std::cout << "check response\n";
+	// std::cout << temp << std::endl;
+	// std::copy(temp.begin(), temp.end(), std::ostreambuf_iterator<char>(ss));
+	// _response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
+	// setMessageBody(_response);
+	// _code = 200;	
 }
 
 char	**Response::toEnv(char **&env)

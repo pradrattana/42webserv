@@ -450,7 +450,8 @@ void	ConfigParser::parseCgiPass(const std::string &s, uintptr_t p)
 	std::set<std::string>	allow;
 
 	allow.insert("php-cgi");
-	// allow.insert("php-cgi");
+	allow.insert("cgi-bin/download-file.py");
+	allow.insert("cgi-bin/delete-file.perl");
 	if (std::find(allow.begin(), allow.end(), res) != allow.end())
 	{
 		*deserialize<std::string>(p) = res;
