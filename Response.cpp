@@ -263,6 +263,7 @@ void Response::setErrorPath()
 			}
 		}
 	}
+	oss.str("");
 	oss << "./webserv_default_error/error" << _code << ".html";
 	_fullPath = oss.str();
 }
