@@ -35,13 +35,11 @@ public:
 	const int	&getListeningFd() const;
 	const int	&getListeningPort() const;
 
-	const std::string	toEnv() const;
-
 private:
-	int							_lsnPort;
-	int							_lsnFd;
-	struct sockaddr_in			_servAddr;
-	struct sockaddr_in			_cliAddr;
+	int					_lsnPort;
+	int					_lsnFd;
+	struct sockaddr_in	_servAddr;
+	struct sockaddr_in	_cliAddr;
 };
 
 #endif

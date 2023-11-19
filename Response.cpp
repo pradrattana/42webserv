@@ -207,15 +207,15 @@ bool	Response::setFullPath()
 	else
 		oss << _request.getUri().substr(_request.getUri().find(_reqLoc.uri) + _reqLoc.uri.length());
 
-	if (_request.getUri().find('.') == std::string::npos)
+	if (_request.getUri().find('.') == std::string::npos || _request.getUri() == "/")
 	{
-		if (*(oss.str().end() - 1) != '/' || _reqLoc.autoIdx == "off")
+		if (*(oss.str().end() - 1) != '/' || _reqLoc.autoIdx == "off" || _request.getUri() == "/")
 		{
 			for (std::vector<std::string>::const_iterator it = _reqLoc.index.begin();
 					it != _reqLoc.index.end(); it++)
 			{
 				std::string	fname(oss.str());
-				fname.append('/' + *it);
+				fname.append(( _request.getUri() == "/" ? "" : "/") + *it);
 				if (stat(fname.c_str(), &statBuf) == 0)
 				{
 					_fullPath = fname;

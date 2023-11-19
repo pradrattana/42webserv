@@ -39,10 +39,7 @@ void Socket::initSocket(const t_listenData &lsn)
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
-
 	fcntl(_lsnFd, F_SETFL, O_NONBLOCK);
-	// int    on = 1;
-	// ioctl(_lsnFd, FIONBIO, (char *)&on);
 
 	bzero((char *)&_servAddr, sizeof(_servAddr));
 	_servAddr.sin_family = AF_INET;
@@ -90,15 +87,3 @@ const int &Socket::getListeningPort() const
 {
 	return _lsnPort;
 }
-
-// const std::string	Socket::toEnv() const {
-// 	std::ostringstream		oss;
-// 	// std::string				key;
-// 	// std::string::size_type	pos;
-// 	char	str[INET_ADDRSTRLEN];
-
-// 	oss << "REMOTE_ADDR=\"" << inet_ntop(AF_INET, &_cliAddr.sin_addr, str, INET_ADDRSTRLEN) << "\"\n";
-// 	oss << "REMOTE_PORT=\"" << ntohs(_cliAddr.sin_port) << "\"\n";
-
-// 	return oss.str();
-// }
