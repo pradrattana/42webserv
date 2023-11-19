@@ -29,7 +29,7 @@ CgiHandler &CgiHandler::operator=(const CgiHandler &src)
 void	CgiHandler::executeCgi(const std::string &cgi)
 {
 	int	pp[2];
-	int	pid;
+	int	pid, status;
 
 	if (pipe(pp) < 0)
 	{
@@ -47,7 +47,10 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 
 		FILE	*fp = fopen("myfile.bin", "rb");
 		if (fp == NULL)
-			throw 500;
+		{
+			close(pp[1]);
+			exit(EXIT_FAILURE);
+		}
 
 		dup2(fileno(fp), STDIN_FILENO);
 		dup2(pp[1], STDOUT_FILENO);
@@ -60,7 +63,9 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 			for (int i = 0; env[i] != NULL; i++)
 				delete env[i];
 			delete[] env;
-			throw 500;
+			close(pp[1]);
+			fclose(fp);
+			exit(EXIT_FAILURE);
 		}
 
 		for (int i = 0; env[i] != NULL; i++)
@@ -68,10 +73,13 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 		delete[] env;
 		close(pp[1]);
 		fclose(fp);
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 	close(pp[1]);
-	waitpid(pid, 0, 0);
+
+	waitpid(pid, &status, 0);	
+	if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_FAILURE)
+		throw 500;
 
 	std::vector<char>	data, buf(MAXLINE);
 	int	tmpReadLen;
@@ -94,6 +102,7 @@ void	CgiHandler::executeCgi(const std::string &cgi)
 void CgiHandler::executeCgiDownload(const std::string &_fullPath){
 	int	pipeinfd[2];
 	int pipeoutfd[2];
+	int	status;
 
 	if (pipe(pipeinfd) == -1 || pipe(pipeoutfd) == -1)
 	{
@@ -133,13 +142,17 @@ void CgiHandler::executeCgiDownload(const std::string &_fullPath){
 		if (execve(arg[0], &arg[0], env) == -1)
 		{
 			perror("execve in cgi");
-			throw 500;
+			exit(EXIT_FAILURE);
 		}
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 	close(pipeoutfd[1]); //close write
 	close(pipeinfd[0]);
 	close(pipeinfd[1]);
+
+	waitpid(pid, &status, 0);
+	if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_FAILURE)
+		throw 500;
 
 	std::vector<char>	data, buf(MAXLINE);
 	int	tmpReadLen;
@@ -156,7 +169,6 @@ void CgiHandler::executeCgiDownload(const std::string &_fullPath){
 	close(pipeoutfd[0]);
 	data.push_back('\0');
 
-	waitpid(pid, 0, 0);
 	setBodyAndHeaders(data);
 }
 

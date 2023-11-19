@@ -101,9 +101,6 @@ void Server::waiting()
 		_readSet = _allSet;
 		_writeSet = _allSet;
 		_exceptSet = _allSet;
-		// struct timeval tv = {1, 0};
-
-		std::cout << "max fd: " << *_setAllSet.rbegin() << '\n';
 
 		if ((nready = select(*_setAllSet.rbegin() + 1, &_readSet, &_writeSet, &_exceptSet, NULL)) < 0)
 		{
