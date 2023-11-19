@@ -160,62 +160,6 @@ void CgiHandler::executeCgiDownload(const std::string &_fullPath){
 	setBodyAndHeaders(data);
 }
 
-void CgiHandler::executeCgiDelete(RequestParser &_request, std::string &res){
-	int	pipefd[2];
-
-	if (pipe(pipefd) == -1) {
-		perror("error pipe");
-		exit(EXIT_FAILURE);
-	}
-	std::string filename = "filename=";
-	std::string fullpath = "fullpath=" ;
-	fullpath.append(_request.getUri().c_str()); //, _request.getUri().length());
-	size_t pos = _request.getUri().find_last_of('/');
-	if (pos != std::string::npos)
-		filename.append(_request.getUri().substr(pos + 1, _request.getUri().length()));
-	char *fname = const_cast<char *>(filename.c_str());
-	char cgi[27] = "cgi-bin/delete-file.perl";
-	char *save_path = const_cast<char*>(fullpath.c_str());
-	char *arg[2] = {cgi, NULL};
-	char *env[3] = {save_path, fname, NULL};
-	int pid = fork();
-	if (pid < 0)
-	{
-		perror("fork in cgi");
-		throw 500;
-	}
-	if (pid == 0) {
-		close(pipefd[0]); //close read
-		dup2(pipefd[1], STDOUT_FILENO);
-		if (execve(arg[0], &arg[0], env) == -1)
-		{
-			perror("execve in cgi");
-			throw 500;
-		}
-		exit(0);
-	}
-	close(pipefd[1]);
-	waitpid(pid, 0, 0);
-
-	std::vector<char>	data, buf(MAXLINE);
-	int	tmpReadLen;
-	do
-	{
-		tmpReadLen = read(pipefd[0], buf.data(), MAXLINE);
-		if (tmpReadLen == -1)
-		{
-			perror("read in cgi");
-			throw 500;
-		}
-		data.insert(data.end(), buf.begin(), buf.begin() + tmpReadLen);
-	} while (tmpReadLen == MAXLINE);
-	close(pipefd[0]);
-	data.push_back('\0');
-
-	setBodyAndHeaders(data);
-	(void)res;
-}
-
 const std::string	CgiHandler::getCgiFullPath(const std::string &s) const
 {
 	std::stringstream	ss(getenv("PATH"));

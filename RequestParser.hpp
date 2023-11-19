@@ -58,9 +58,7 @@ public:
 private:
 	t_reqLine	_reqLine;
 	std::map<std::string, std::string>	_headers;
-	// char		*_msgBody;
 	size_t		_msgLen;
-	size_t		_readLen;
 };
 
 #endif

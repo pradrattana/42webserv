@@ -12,6 +12,7 @@ Response::Response(const Response &src)
 
 Response::~Response(void)
 {
+	remove("myfile.bin");
 }
 
 Response &Response::operator=(const Response &src)
@@ -161,6 +162,7 @@ void Response::setResponse()
 	{
 		setContentLength();
 	}
+	setDate();
 	ss << getStatusLine() << getHeadersText() << "\r\n";
 	std::copy(_msgBody.begin(), _msgBody.end(), std::ostreambuf_iterator<char>(ss));
 	_response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
@@ -261,7 +263,7 @@ void Response::setErrorPath()
 			}
 		}
 	}
-	oss << std::getenv("PWD") << "/webserv_default_error/error" << _code << ".html";
+	oss << "./webserv_default_error/error" << _code << ".html";
 	_fullPath = oss.str();
 }
 
@@ -336,7 +338,8 @@ void Response::methodHandler()
 	method["POST"] = &Response::methodPost;
 	method["DELETE"] = &Response::methodDelete;
 
-	setDate();
+	if (_request.getVersion() != "HTTP/1.1")
+		throw 505;
 
 	if (method.find(_request.getMethod()) != method.end())
 	{
@@ -413,20 +416,6 @@ void Response::methodDelete()
 	// 	if (_request.getMessageBodyLen() > _reqLoc.cliMax)
 	// 		throw 413;
 	_cgi.executeCgi("cgi-bin/delete-file.perl");
-
-	// setContentType();
-	// std::string temp = "";
-	// std::stringstream ss;
-	// _cgi.executeCgiDelete(_request, temp);	
-	// if (temp.find("not found") != std::string::npos)
-	// 	throw 404;
-
-	// std::cout << "check response\n";
-	// std::cout << temp << std::endl;
-	// std::copy(temp.begin(), temp.end(), std::ostreambuf_iterator<char>(ss));
-	// _response.assign(std::istreambuf_iterator<char>(ss), std::istreambuf_iterator<char>());
-	// setMessageBody(_response);
-	// _code = 200;	
 }
 
 char	**Response::toEnv(char **&env)

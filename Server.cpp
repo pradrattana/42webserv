@@ -13,10 +13,17 @@ static void sigHandler(int signo)
 
 Server::Server(void)
 {
+	//clear memory in _allSock
+	for (std::vector<Socket *>::iterator it = _allSock.begin();
+			it != _allSock.end(); it++)
+		delete (*it);
+	std::cout << "Server shutdown\n";
 }
 
 Server::Server(const ConfigParser &conf)
 {
+	signal(SIGINT, sigHandler);
+	signal(SIGQUIT, sigHandler);
 	initAllSocket(conf.getServer());
 	initAllFdset();
 	waiting();
@@ -36,9 +43,11 @@ Server &Server::operator=(const Server &src)
 	if (this != &src)
 	{
 		_allSock = src._allSock;
+		_setAllSet = src._setAllSet;
 		_allSet = src._allSet;
 		_readSet = src._readSet;
-		_maxFd = src._maxFd;
+		_writeSet = src._writeSet;
+		_exceptSet = src._exceptSet;
 		_portToServ = src._portToServ;
 		_cli = src._cli;
 	}
@@ -79,8 +88,7 @@ void Server::initAllFdset()
 	{
 		lsnFd = (*it)->getListeningFd();
 		FD_SET(lsnFd, &_allSet);
-		if (lsnFd > _maxFd)
-			_maxFd = lsnFd;
+		_setAllSet.insert(lsnFd);
 	}
 }
 
@@ -88,13 +96,21 @@ void Server::waiting()
 {
 	int nready;
 
-	signal(SIGINT, sigHandler);
-	signal(SIGQUIT, sigHandler);
 	while (_isRunning)
 	{
 		_readSet = _allSet;
-		nready = select(_maxFd + 1, &_readSet, &_writeSet, &_exceptSet, NULL);
-		if (nready >= 0)
+		_writeSet = _allSet;
+		_exceptSet = _allSet;
+		// struct timeval tv = {1, 0};
+
+		std::cout << "max fd: " << *_setAllSet.rbegin() << '\n';
+
+		if ((nready = select(*_setAllSet.rbegin() + 1, &_readSet, &_writeSet, &_exceptSet, NULL)) < 0)
+		{
+			perror("select");
+			exit(1);
+		}
+		else
 		{
 			for (std::vector<Socket *>::iterator it = _allSock.begin();
 				 it != _allSock.end(); it++)
@@ -110,19 +126,15 @@ void Server::waiting()
 			{
 				std::map<int, t_serverData>::iterator itNext = ++it;
 				it--;
-				if (checkClient(*it, nready)) {
-					std::cerr << "client: " << it->first << '\n';
+				if (checkClient(*it, nready))
+				{
+					std::cout << "client " << it->first << " is not ready\n";
 					break;
 				}
 				it = itNext;
 			}
 		}
 	}
-	//clear memory in _allSock
-	for (std::vector<Socket *>::iterator it = _allSock.begin();
-		 it != _allSock.end(); it++)
-		delete (*it);
-	std::cout << "Server shutdown\n";
 }
 
 int Server::addNewConnection(Socket *s, int &nready)
@@ -130,6 +142,7 @@ int Server::addNewConnection(Socket *s, int &nready)
 	const int newFd = s->getNewConnection();
 
 	_cli[newFd] = _portToServ[s->getListeningPort()];
+	std::cout << "new connection from cli " << newFd << '\n';
 	if (_cli.size() >= FD_SETSIZE)
 	{
 		perror("too many clients");
@@ -137,8 +150,7 @@ int Server::addNewConnection(Socket *s, int &nready)
 	}
 
 	FD_SET(newFd, &_allSet);
-	if (newFd > _maxFd)
-		_maxFd = newFd;
+	_setAllSet.insert(newFd);
 
 	return (--nready <= 0);
 }
@@ -158,11 +170,13 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 		if (!rp.processing(fdToServ.second, sockfd))
 		{
 			std::cout << "erase cli " << sockfd << std::endl;
+			close(sockfd);
 			FD_CLR(sockfd, &_allSet);
+			_setAllSet.erase(sockfd);
 			_cli.erase(sockfd);
 			return 0;
 		}
-		std::cout << "send response\n";
+		std::cout << "client " << sockfd << " will get response\n";
 		FD_SET(sockfd, &_writeSet);
 		if (FD_ISSET(sockfd, &_writeSet))
 		// write(1, rp.getResponse().data(), rp.getResponse().size());

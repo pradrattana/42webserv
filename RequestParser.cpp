@@ -1,10 +1,10 @@
 #include "RequestParser.hpp"
 
-RequestParser::RequestParser(void): _msgLen(0), _readLen(0)
+RequestParser::RequestParser(void): _msgLen(0)
 {
 }
 
-RequestParser::RequestParser(const RequestParser &src): _msgLen(0), _readLen(0)
+RequestParser::RequestParser(const RequestParser &src): _msgLen(0)
 {
 	*this = src;
 }
@@ -20,7 +20,6 @@ RequestParser &RequestParser::operator=(const RequestParser &src)
 		_reqLine = src._reqLine;
 		_headers = src._headers;
 		_msgLen = src._msgLen;
-		_readLen = src._readLen;
 	}
 	return *this;
 }
@@ -35,38 +34,41 @@ int	RequestParser::readRequest(int sockfd)
 		free(buf);
 		return 0;
 	}
-	_readLen += tmpReadLen;
 
 	std::istringstream	iss(buf);
 	std::string			line;
 
-	if (!std::getline(iss, line))
-		return 400;
-	if (!parseRequestLine(line))
-		return 400;
-	if (!parseHeaders(iss))
-		return 400;
+	if (std::getline(iss, line))
+	{
+		if (parseRequestLine(line))
+		{
+			if (parseHeaders(iss))
+			{
+				FILE	*fp = fopen("myfile.bin", "wb");
+				if (fp == NULL)
+				{
+					free(buf);
+					return 500;
+				}
+				try
+				{
+					parseMessageBody(sockfd, fileno(fp));
+				}
+				catch (int e)
+				{
+					fclose(fp);
+					free(buf);
+					return e;
+				}
 
-	FILE	*fp = fopen("myfile.bin", "wb");
-	if (fp == NULL)
-	{
-		free(buf);
-		return 500;
+				fclose(fp);
+				free(buf);
+				return 200;
+			}
+		}
 	}
-	try
-	{
-		parseMessageBody(sockfd, fileno(fp));
-	}
-	catch (int)
-	{
-		fclose(fp);
-		free(buf);
-		return 0;
-	}
-
-	fclose(fp);
 	free(buf);
-	return 200;
+	return 400;
 }
 
 size_t	RequestParser::readToBuf(int sockfd, char *&buf)
@@ -84,7 +86,7 @@ size_t	RequestParser::readToBuf(int sockfd, char *&buf)
 		}
 		else if (tmpReadLen < 0)
 		{
-			perror("recv");
+			perror("recv request line and headers");
 			return 0;
 		}
 		buf = (char *)realloc(buf, bufsize + tmpReadLen + 1);
@@ -98,20 +100,25 @@ size_t	RequestParser::readToBuf(int sockfd, char *&buf)
 size_t	RequestParser::readToFile(int sockfd, int filefd)
 {
 	char	recvbuf[MAXLINE] = {0};
-	int		tmpReadLen = 0;
+	int		tmpReadLen = 0, readLen = 0;
 
-	tmpReadLen = recv(sockfd, recvbuf, MAXLINE, 0);
-	if (tmpReadLen == 0)
+	do
 	{
-		return 0;
-	}
-	else if (tmpReadLen < 0)
-	{
-		perror("recv");
-		return 0;
-	}
-	write(filefd, recvbuf, tmpReadLen);
-	return tmpReadLen;
+		tmpReadLen = recv(sockfd, recvbuf, MAXLINE, 0);
+		if (tmpReadLen == 0)
+		{
+			return readLen;
+		}
+		else if (tmpReadLen < 0)
+		{
+			perror("recv message body");
+			throw 500;
+			// return 0;
+		}
+		write(filefd, recvbuf, tmpReadLen);
+		readLen += tmpReadLen;
+	} while (tmpReadLen == MAXLINE);
+	return readLen;
 }
 
 bool	RequestParser::parseRequestLine(const std::string &line)
@@ -182,16 +189,12 @@ bool	RequestParser::parseHeaders(std::istringstream &src)
 		key = line.substr(0, valPos);
 		val = line.substr(valPos + 2, line.length() - valPos - 3);
 		_headers[key] = val;
-		// std::cout << key << ": " << val << '\n';
 	}
 	return false;
 }
 
 void	RequestParser::parseMessageBody(int sockfd, int filefd)
 {
-	size_t	bufsize = 0;
-	size_t	tmpReadLen = 0;
-
 	try
 	{
 		_msgLen = atoi(_headers.at("Content-Length").c_str());
@@ -201,16 +204,8 @@ void	RequestParser::parseMessageBody(int sockfd, int filefd)
 		return;
 	}
 
-	while (bufsize < _msgLen)
-	{
-		tmpReadLen = readToFile(sockfd, filefd);
-		if (tmpReadLen == 0)
-		{
-			throw 0;
-		}
-		bufsize += tmpReadLen;
-	}
-	_readLen += bufsize;
+	if (readToFile(sockfd, filefd) != _msgLen)
+		throw 400;
 }
 
 char	**RequestParser::toEnv(const t_locationData &reqLoc, char **&env)
@@ -296,29 +291,7 @@ const std::map<std::string, std::string>	&RequestParser::getHeaders() const
 	return _headers;
 }
 
-// const char	*RequestParser::getMessageBody() const
-// {
-// 	return _msgBody;
-// }
-
 const size_t	&RequestParser::getMessageBodyLen() const
 {
 	return _msgLen;
 }
-
-// const size_t	&RequestParser::getReadLen() const
-// {
-// 	return _readLen;
-// }
-
-// RequestParser::t_reqLine &RequestParser::t_reqLine::operator=(const t_reqLine &src)
-// {
-// 	if (this == &src)
-// 	{
-// 		method = src.method;
-// 		uri = src.uri;
-// 		query = src.query;
-// 		version = src.version;
-// 	}
-// 	return *this;
-// }

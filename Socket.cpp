@@ -2,7 +2,6 @@
 
 Socket::Socket(void)
 {
-	// std::cout << "Default constructor called by <Socket>" << std::endl;
 }
 
 Socket::Socket(const t_listenData &lsn)
@@ -13,22 +12,22 @@ Socket::Socket(const t_listenData &lsn)
 
 Socket::Socket(const Socket &src)
 {
-	// std::cout << "Copy constructor called by <Socket>" << std::endl;
 	*this = src;
 }
 
 Socket::~Socket(void)
 {
-	// std::cout << "Destructor called by <Socket>" << std::endl;
 }
 
 Socket &Socket::operator=(const Socket &src)
 {
-	// std::cout << "Copy assignment operator called by <Socket>" << std::endl;
-	_lsnPort = src._lsnPort;
-	_lsnFd = src._lsnFd;
-	_servAddr = src._servAddr;
-	_cliAddr = src._cliAddr;
+	if (this != &src)
+	{
+		_lsnPort = src._lsnPort;
+		_lsnFd = src._lsnFd;
+		_servAddr = src._servAddr;
+		_cliAddr = src._cliAddr;
+	}
 	return *this;
 }
 
@@ -79,10 +78,6 @@ int Socket::getNewConnection()
 		perror("accept");
 		exit(EXIT_FAILURE);
 	}
-	char str[INET_ADDRSTRLEN];
-	printf("new client: %s, port %d\n",
-		   inet_ntop(AF_INET, &_cliAddr.sin_addr, str, INET_ADDRSTRLEN),
-		   ntohs(_cliAddr.sin_port));
 	return newFd;
 }
 
