@@ -183,6 +183,16 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 			write(sockfd, rp.getResponse().data(), rp.getResponse().size());
 			std::cout << "client " << sockfd << " get response with status code "
 				<< rp.getStatusLine().substr(9, 3) << "\n";
+			if (atoi(rp.getStatusLine().substr(9, 3).c_str()) / 100 == 4
+				|| atoi(rp.getStatusLine().substr(9, 3).c_str()) / 100 == 5)
+			{
+				std::cout << "error!! erase cli " << sockfd << std::endl;
+				close(sockfd);
+				FD_CLR(sockfd, &_allSet);
+				_setAllSet.erase(sockfd);
+				_cli.erase(sockfd);
+				return 0;
+			}
 		}
 
 		return (--nready <= 0);
