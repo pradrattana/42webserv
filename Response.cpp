@@ -207,7 +207,7 @@ bool	Response::setFullPath()
 	else
 		oss << _request.getUri().substr(_request.getUri().find(_reqLoc.uri) + _reqLoc.uri.length());
 
-	if (_request.getUri().find('.') == std::string::npos || _request.getUri() == "/")
+	if (_request.getUri().find('.') == std::string::npos)
 	{
 		if (*(oss.str().end() - 1) != '/' || _reqLoc.autoIdx == "off" || _request.getUri() == "/")
 		{

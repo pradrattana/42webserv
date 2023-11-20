@@ -13,11 +13,6 @@ static void sigHandler(int signo)
 
 Server::Server(void)
 {
-	//clear memory in _allSock
-	for (std::vector<Socket *>::iterator it = _allSock.begin();
-			it != _allSock.end(); it++)
-		delete (*it);
-	std::cout << "Server shutdown\n";
 }
 
 Server::Server(const ConfigParser &conf)
@@ -36,6 +31,14 @@ Server::Server(const Server &src)
 
 Server::~Server(void)
 {
+	//clear memory in _allSock
+	for (std::vector<Socket *>::iterator it = _allSock.begin();
+			it != _allSock.end(); it++)
+		delete (*it);
+	for (std::set<int>::iterator it = _setAllSet.begin();
+			it != _setAllSet.end(); it++)
+		close(*it);
+	std::cout << "Server shutdown\n";
 }
 
 Server &Server::operator=(const Server &src)

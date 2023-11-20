@@ -128,13 +128,6 @@ void	ConfigParser::fillDefaultServer(t_serverData &s)
 
 	if (s.name.empty())
 		s.name.push_back("");
-	// if (s.listen.empty())
-	// {
-	// 	t_listenData	lsn = { "*", 80 };
-	// 	s.listen.push_back(lsn);
-	// 	lsn.port = 8000;
-	// 	s.listen.push_back(lsn);
-	// }
 	if (s.root.empty())
 		s.root = "html";
 	if (s.index.empty())
@@ -156,6 +149,14 @@ void	ConfigParser::fillDefaultServer(t_serverData &s)
 		fillDefaultLocation(s.location.back(), s);
 	}
 	std::sort(s.location.begin(), s.location.end(), compareByUri);
+	if (s.location.back().limExcept.empty())
+		s.location.back().limExcept.insert("GET");
+	for (std::vector<t_locationData>::iterator it = s.location.begin();
+			it != s.location.end() - 1; it++)
+	{
+		if (it->limExcept.empty())
+			it->limExcept = s.location.back().limExcept;
+	}
 }
 
 void	ConfigParser::fillDefaultLocation(t_locationData &l, const t_serverData &s)
@@ -179,8 +180,8 @@ void	ConfigParser::fillDefaultLocation(t_locationData &l, const t_serverData &s)
 		l.errPage = s.errPage;
 	if (l.redir.url.empty())
 		l.redir = s.redir;
-	l.limExcept.insert("GET");
-	// l.limExcept.insert("HEAD");
+	// if (l.limExcept.empty())
+	// 	l.limExcept.insert("GET");
 	if (l.cgiPass.empty())
 		l.cgiPass = "php-cgi";
 }
@@ -416,10 +417,28 @@ void	ConfigParser::parseReturn(const std::string &s, uintptr_t p)
 	{
 		// std::cout << iss.str().substr(iss.tellg()) << '\n';
 		ret.url = iss.str().substr(iss.tellg());
-		if (isURIValid(ret.url))
+		if (ret.url.find("://") != std::string::npos)
 		{
-			*deserialize<t_returnData>(p) = ret;
-			return;
+			if (isURIValid(ret.url))
+			{
+				*deserialize<t_returnData>(p) = ret;
+				return;
+			}
+		}
+		else
+		{
+			std::string::size_type	pos = formatPath(ret.url).find('?');
+			if (pos != std::string::npos)
+			{
+				std::cout << ret.url.substr(pos + 1);
+				if (!isURIQueryValid(ret.url.substr(pos + 1)))
+					throw ConfigParser::InvalidConfigException();
+			}
+			if (isURIPathValid(ret.url.substr(0, pos)))
+			{
+				*deserialize<t_returnData>(p) = ret;
+				return;
+			}
 		}
 	}
 	throw ConfigParser::InvalidConfigException();
