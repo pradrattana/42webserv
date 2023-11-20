@@ -282,8 +282,10 @@ void	ConfigParser::parseListen(const std::string &s, uintptr_t p)
 			if (!isIPv4(lsn.addr = col.substr(0, pos)))
 				throw ConfigParser::InvalidConfigException();
 			iss.seekg(pos + 1);
-		} else
+		}
+		else
 		{
+			lsn.addr = "127.0.0.1";
 			iss.seekg(0);
 		}
 		if ((iss >> lsn.port >> std::ws).eof())
