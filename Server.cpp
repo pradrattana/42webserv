@@ -169,7 +169,7 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 		Response rp;
 		if (!rp.processing(fdToServ.second, sockfd))
 		{
-			std::cout << "erase cli " << sockfd << std::endl;
+			std::cout << "erase client " << sockfd << std::endl;
 			close(sockfd);
 			FD_CLR(sockfd, &_allSet);
 			_setAllSet.erase(sockfd);
@@ -179,10 +179,11 @@ int Server::checkClient(std::pair<const int, t_serverData> &fdToServ, int &nread
 		std::cout << "client " << sockfd << " will get response\n";
 		FD_SET(sockfd, &_writeSet);
 		if (FD_ISSET(sockfd, &_writeSet))
-		// write(1, rp.getResponse().data(), rp.getResponse().size());
+		{
 			write(sockfd, rp.getResponse().data(), rp.getResponse().size());
-		// else
-			// FD_SET(sockfd, &_writeSet);
+			std::cout << "client " << sockfd << " get response with status code "
+				<< rp.getStatusLine().substr(9, 3) << "\n";
+		}
 
 		return (--nready <= 0);
 	}

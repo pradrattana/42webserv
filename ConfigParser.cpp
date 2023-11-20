@@ -430,7 +430,6 @@ void	ConfigParser::parseReturn(const std::string &s, uintptr_t p)
 			std::string::size_type	pos = formatPath(ret.url).find('?');
 			if (pos != std::string::npos)
 			{
-				std::cout << ret.url.substr(pos + 1);
 				if (!isURIQueryValid(ret.url.substr(pos + 1)))
 					throw ConfigParser::InvalidConfigException();
 			}
